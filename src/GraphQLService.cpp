@@ -2227,100 +2227,12 @@ void Request::deliver(std::launch launch, const SubscriptionName& name,
 	callbacks.reserve(itrListeners->second.size());
 	for (const auto& key : itrListeners->second)
 	{
-		auto itrSubscription = _subscriptions.find(key);
-		auto registration = itrSubscription->second;
-		const auto& subscriptionArguments = registration->arguments;
-		bool matchedArguments = true;
 
-		// If the field in this subscription had arguments that did not match what was provided
-		// in this event, don't deliver the event to this subscription
-		for (const auto& required : subscriptionArguments)
-		{
-			if (!applyArguments(required))
-			{
-				matchedArguments = false;
-				break;
-			}
-		}
+		auto delivery=doDeliver(launch, key, applyArguments,
+				applyDirectives, optionalOrDefaultSubscription);
+		if(delivery)
+			callbacks.push_back(std::move(*delivery));
 
-		if (!matchedArguments)
-		{
-			continue;
-		}
-
-		// If the field in this subscription had field directives that did not match what was
-		// provided in this event, don't deliver the event to this subscription
-		const auto& subscriptionFieldDirectives = registration->fieldDirectives;
-		bool matchedFieldDirectives = true;
-
-		for (const auto& required : subscriptionFieldDirectives)
-		{
-			if (!applyDirectives(required))
-			{
-				matchedFieldDirectives = false;
-				break;
-			}
-		}
-
-		if (!matchedFieldDirectives)
-		{
-			continue;
-		}
-
-		std::future<response::Value> result;
-		response::Value emptyFragmentDirectives(response::Type::Map);
-		const SelectionSetParams selectionSetParams {
-			ResolverContext::Subscription,
-			registration->data->state,
-			registration->data->directives,
-			emptyFragmentDirectives,
-			emptyFragmentDirectives,
-			emptyFragmentDirectives,
-			std::nullopt,
-			launch,
-		};
-
-		try
-		{
-			result = std::async(
-				launch,
-				[](std::future<ResolverResult>&& operationFuture) {
-					auto result = operationFuture.get();
-					response::Value document { response::Type::Map };
-
-					document.emplace_back(std::string { strData }, std::move(result.data));
-
-					if (!result.errors.empty())
-					{
-						document.emplace_back(std::string { strErrors },
-							buildErrorValues(std::move(result.errors)));
-					}
-
-					return document;
-				},
-				optionalOrDefaultSubscription->resolve(selectionSetParams,
-					registration->selection,
-					registration->data->fragments,
-					registration->data->variables));
-		}
-		catch (schema_exception& ex)
-		{
-			std::promise<response::Value> promise;
-			response::Value document(response::Type::Map);
-
-			document.emplace_back(std::string { strData }, response::Value());
-			document.emplace_back(std::string { strErrors }, ex.getErrors());
-			promise.set_value(std::move(document));
-
-			result = promise.get_future();
-		}
-
-		callbacks.push_back(std::async(
-			launch,
-			[registration](std::future<response::Value> document) {
-				registration->callback(std::move(document));
-			},
-			std::move(result)));
 	}
 
 	for (auto& callback : callbacks)
@@ -2328,5 +2240,220 @@ void Request::deliver(std::launch launch, const SubscriptionName& name,
 		callback.get();
 	}
 }
+
+void Request::deliver(
+	const SubscriptionKey& key, const std::shared_ptr<Object>& subscriptionObject) const
+{
+	deliver(std::launch::deferred, key, subscriptionObject);
+}
+
+void Request::deliver(const SubscriptionKey& key, const SubscriptionArguments& arguments,
+	const std::shared_ptr<Object>& subscriptionObject) const
+{
+	deliver(std::launch::deferred, key, arguments, subscriptionObject);
+}
+
+void Request::deliver(const SubscriptionKey& key, const SubscriptionArguments& arguments,
+	const SubscriptionArguments& directives,
+	const std::shared_ptr<Object>& subscriptionObject) const
+{
+	deliver(std::launch::deferred, key, arguments, directives, subscriptionObject);
+}
+
+void Request::deliver(const SubscriptionKey& key,
+	const SubscriptionFilterCallback& applyArguments,
+	const std::shared_ptr<Object>& subscriptionObject) const
+{
+	deliver(std::launch::deferred, key, applyArguments, subscriptionObject);
+}
+
+void Request::deliver(const SubscriptionKey& key,
+	const SubscriptionFilterCallback& applyArguments,
+	const SubscriptionFilterCallback& applyDirectives,
+	const std::shared_ptr<Object>& subscriptionObject) const
+{
+	deliver(std::launch::deferred, key, applyArguments, applyDirectives, subscriptionObject);
+}
+
+void Request::deliver(std::launch launch, const SubscriptionKey& key,
+	const std::shared_ptr<Object>& subscriptionObject) const
+{
+	deliver(launch, key, SubscriptionArguments {}, SubscriptionArguments {}, subscriptionObject);
+}
+
+void Request::deliver(std::launch launch, const SubscriptionKey& key,
+	const SubscriptionArguments& arguments, const std::shared_ptr<Object>& subscriptionObject) const
+{
+	deliver(launch, key, arguments, SubscriptionArguments {}, subscriptionObject);
+}
+
+void Request::deliver(std::launch launch, const SubscriptionKey& key,
+	const SubscriptionArguments& arguments, const SubscriptionArguments& directives,
+	const std::shared_ptr<Object>& subscriptionObject) const
+{
+	SubscriptionFilterCallback argumentsMatch =
+		[&arguments](response::MapType::const_reference required) noexcept -> bool {
+		auto itrArgument = arguments.find(required.first);
+
+		return (itrArgument != arguments.end() && itrArgument->second == required.second);
+	};
+
+	SubscriptionFilterCallback directivesMatch =
+		[&directives](response::MapType::const_reference required) noexcept -> bool {
+		auto itrDirective = directives.find(required.first);
+
+		return (itrDirective != directives.end() && itrDirective->second == required.second);
+	};
+
+	deliver(launch, key, argumentsMatch, directivesMatch, subscriptionObject);
+}
+
+void Request::deliver(std::launch launch, const SubscriptionKey& key,
+	const SubscriptionFilterCallback& applyArguments,
+	const std::shared_ptr<Object>& subscriptionObject) const
+{
+	deliver(
+		launch,
+		key,
+		applyArguments,
+		[](response::MapType::const_reference) noexcept {
+			return true;
+		},
+		subscriptionObject);
+}
+
+void Request::deliver(std::launch launch, const SubscriptionKey& key,
+	const SubscriptionFilterCallback& applyArguments,
+	const SubscriptionFilterCallback& applyDirectives,
+	const std::shared_ptr<Object>& subscriptionObject) const
+{
+	const auto itrOperation = _operations.find(strSubscription);
+
+	if (itrOperation == _operations.end())
+	{
+		// There may be an empty entry in the operations map, but if it's completely missing then
+		// that means the schema doesn't support subscriptions at all.
+		throw std::logic_error("Subscriptions not supported");
+	}
+
+	const auto& optionalOrDefaultSubscription =
+		subscriptionObject ? subscriptionObject : itrOperation->second;
+
+	if (!optionalOrDefaultSubscription)
+	{
+		// If there is no default in the operations map, you must pass a non-empty
+		// subscriptionObject parameter to deliver.
+		throw std::invalid_argument("Missing subscriptionObject");
+	}
+
+	auto delivery=doDeliver(launch, key, applyArguments, applyDirectives, optionalOrDefaultSubscription);
+	if(delivery)
+		delivery->get();
+
+}
+
+std::optional<std::future<void>> Request::doDeliver(std::launch launch, const SubscriptionKey& key,
+	const SubscriptionFilterCallback& applyArguments,
+	const SubscriptionFilterCallback& applyDirectives,
+	const std::shared_ptr<Object>& optionalOrDefaultSubscription) const
+{
+
+	auto itrSubscription = _subscriptions.find(key);
+	auto registration = itrSubscription->second;
+	const auto& subscriptionArguments = registration->arguments;
+	bool matchedArguments = true;
+
+	// If the field in this subscription had arguments that did not match what was provided
+	// in this event, don't deliver the event to this subscription
+	for (const auto& required : subscriptionArguments)
+	{
+		if (!applyArguments(required))
+		{
+			matchedArguments = false;
+			break;
+		}
+	}
+
+	if (!matchedArguments)
+	{
+		return {};
+	}
+
+	// If the field in this subscription had field directives that did not match what was
+	// provided in this event, don't deliver the event to this subscription
+	const auto& subscriptionFieldDirectives = registration->fieldDirectives;
+	bool matchedFieldDirectives = true;
+
+	for (const auto& required : subscriptionFieldDirectives)
+	{
+		if (!applyDirectives(required))
+		{
+			matchedFieldDirectives = false;
+			break;
+		}
+	}
+
+	if (!matchedFieldDirectives)
+	{
+		return {};
+	}
+
+	std::future<response::Value> result;
+	response::Value emptyFragmentDirectives(response::Type::Map);
+	const SelectionSetParams selectionSetParams {
+		ResolverContext::Subscription,
+		registration->data->state,
+		registration->data->directives,
+		emptyFragmentDirectives,
+		emptyFragmentDirectives,
+		emptyFragmentDirectives,
+		std::nullopt,
+		launch,
+	};
+
+	try
+	{
+		result = std::async(
+			launch,
+			[](std::future<ResolverResult>&& operationFuture) {
+				auto result = operationFuture.get();
+				response::Value document { response::Type::Map };
+
+				document.emplace_back(std::string { strData }, std::move(result.data));
+
+				if (!result.errors.empty())
+				{
+					document.emplace_back(std::string { strErrors },
+						buildErrorValues(std::move(result.errors)));
+				}
+
+				return document;
+			},
+			optionalOrDefaultSubscription->resolve(selectionSetParams,
+				registration->selection,
+				registration->data->fragments,
+				registration->data->variables));
+	}
+	catch (schema_exception& ex)
+	{
+		std::promise<response::Value> promise;
+		response::Value document(response::Type::Map);
+
+		document.emplace_back(std::string { strData }, response::Value());
+		document.emplace_back(std::string { strErrors }, ex.getErrors());
+		promise.set_value(std::move(document));
+
+		result = promise.get_future();
+	}
+
+	return std::async(
+		launch,
+		[registration](std::future<response::Value> document) {
+			registration->callback(std::move(document));
+		},
+		std::move(result));
+}
+
+
 
 } // namespace graphql::service

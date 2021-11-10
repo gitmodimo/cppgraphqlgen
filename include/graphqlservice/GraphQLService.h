@@ -936,6 +936,38 @@ public:
 		const SubscriptionFilterCallback& applyDirectives,
 		const std::shared_ptr<Object>& subscriptionObject) const;
 
+	GRAPHQLSERVICE_EXPORT void deliver(
+		const SubscriptionKey& key, const std::shared_ptr<Object>& subscriptionObject) const;
+	GRAPHQLSERVICE_EXPORT void deliver(const SubscriptionKey& key,
+		const SubscriptionArguments& arguments,
+		const std::shared_ptr<Object>& subscriptionObject) const;
+	GRAPHQLSERVICE_EXPORT void deliver(const SubscriptionKey& key,
+		const SubscriptionArguments& arguments, const SubscriptionArguments& directives,
+		const std::shared_ptr<Object>& subscriptionObject) const;
+	GRAPHQLSERVICE_EXPORT void deliver(const SubscriptionKey& key,
+		const SubscriptionFilterCallback& applyArguments,
+		const std::shared_ptr<Object>& subscriptionObject) const;
+	GRAPHQLSERVICE_EXPORT void deliver(const SubscriptionKey& key,
+		const SubscriptionFilterCallback& applyArguments,
+		const SubscriptionFilterCallback& applyDirectives,
+		const std::shared_ptr<Object>& subscriptionObject) const;
+
+	GRAPHQLSERVICE_EXPORT void deliver(std::launch launch, const SubscriptionKey& key,
+		const std::shared_ptr<Object>& subscriptionObject) const;
+	GRAPHQLSERVICE_EXPORT void deliver(std::launch launch, const SubscriptionKey& key,
+		const SubscriptionArguments& arguments,
+		const std::shared_ptr<Object>& subscriptionObject) const;
+	GRAPHQLSERVICE_EXPORT void deliver(std::launch launch, const SubscriptionKey& key,
+		const SubscriptionArguments& arguments, const SubscriptionArguments& directives,
+		const std::shared_ptr<Object>& subscriptionObject) const;
+	GRAPHQLSERVICE_EXPORT void deliver(std::launch launch, const SubscriptionKey& key,
+		const SubscriptionFilterCallback& applyArguments,
+		const std::shared_ptr<Object>& subscriptionObject) const;
+	GRAPHQLSERVICE_EXPORT void deliver(std::launch launch, const SubscriptionKey& key,
+		const SubscriptionFilterCallback& applyArguments,
+		const SubscriptionFilterCallback& applyDirectives,
+		const std::shared_ptr<Object>& subscriptionObject) const;
+
 	[[deprecated(
 		"Use the Request::findOperationDefinition overload which takes a peg::ast reference and "
 		"string_view instead.")]] GRAPHQLSERVICE_EXPORT std::pair<std::string, const peg::ast_node*>
@@ -952,6 +984,12 @@ public:
 		response::Value&& variables) const;
 
 private:
+
+	std::optional<std::future<void>> doDeliver(std::launch launch, const SubscriptionKey& key,
+		const SubscriptionFilterCallback& applyArguments,
+		const SubscriptionFilterCallback& applyDirectives,
+		const std::shared_ptr<Object>& optionalOrDefaultSubscription) const;
+
 	std::pair<std::string, const peg::ast_node*> findUnvalidatedOperationDefinition(
 		const peg::ast_node& root, const std::string& operationName) const;
 
