@@ -19,14 +19,19 @@
 // clang-format on
 
 #include "graphqlservice/GraphQLResponse.h"
+#include <rapidjson/rapidjson.h>
+
+#include <rapidjson/reader.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 namespace graphql::response {
+
+JSONRESPONSE_EXPORT void writeResponse(rapidjson::Writer<rapidjson::StringBuffer>& writer, Value&& response);
 
 JSONRESPONSE_EXPORT std::string toJSON(Value&& response);
 
 JSONRESPONSE_EXPORT Value parseJSON(const std::string& json);
-
-JSONRESPONSE_EXPORT void writeResponse(rapidjson::Writer<rapidjson::StringBuffer>& writer, Value&& response);
 
 } // namespace graphql::response
 
