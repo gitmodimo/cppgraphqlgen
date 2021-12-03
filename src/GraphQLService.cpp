@@ -754,8 +754,13 @@ struct FragmentDirectives
 	response::Value inlineFragmentDirectives;
 };
 
+
+
+
+
 // SelectionVisitor visits the AST and resolves a field or fragment, unless it's skipped by
 // a directive or type condition.
+
 class SelectionVisitor
 {
 public:
@@ -765,9 +770,12 @@ public:
 
 	void visit(const peg::ast_node& selection);
 
-	std::vector<std::pair<std::string_view, std::future<ResolverResult>>> getValues();
+	auto getValues(){
+		return _state->builder.getResult();
+	}
 
 private:
+	//using BUILDER::_values;
 	void visitField(const peg::ast_node& field);
 	void visitFragmentSpread(const peg::ast_node& fragmentSpread);
 	void visitInlineFragment(const peg::ast_node& inlineFragment);
@@ -782,9 +790,10 @@ private:
 	const TypeNames& _typeNames;
 	const ResolverMap& _resolvers;
 
+	//std::vector<std::pair<std::string_view, std::future<ResolverResult>>> _values;
+
 	std::list<FragmentDirectives> _fragmentDirectives;
 	internal::string_view_set _names;
-	std::vector<std::pair<std::string_view, std::future<ResolverResult>>> _values;
 };
 
 SelectionVisitor::SelectionVisitor(const SelectionSetParams& selectionSetParams,
@@ -807,15 +816,10 @@ SelectionVisitor::SelectionVisitor(const SelectionSetParams& selectionSetParams,
 		response::Value(response::Type::Map) });
 
 	_names.reserve(count);
-	_values.reserve(count);
+	_state->builder.reserveAdditional(count);
 }
 
-std::vector<std::pair<std::string_view, std::future<ResolverResult>>> SelectionVisitor::getValues()
-{
-	auto values = std::move(_values);
 
-	return values;
-}
 
 void SelectionVisitor::visit(const peg::ast_node& selection)
 {
@@ -832,6 +836,7 @@ void SelectionVisitor::visit(const peg::ast_node& selection)
 		visitInlineFragment(selection);
 	}
 }
+
 
 void SelectionVisitor::visitField(const peg::ast_node& field)
 {
@@ -875,7 +880,7 @@ void SelectionVisitor::visitField(const peg::ast_node& field)
 				{ position.line, position.column },
 				buildErrorPath(_path ? std::make_optional(_path->get()) : std::nullopt) } } }));
 
-		_values.push_back({ alias, promise.get_future() });
+		_state->builder.onError({ alias, promise.get_future() });
 		return;
 	}
 
@@ -931,7 +936,8 @@ void SelectionVisitor::visitField(const peg::ast_node& field)
 			_fragments,
 			_variables));
 
-		_values.push_back({ alias, std::move(result) });
+		_state->builder.onResult({ alias, std::move(result) });
+
 	}
 	catch (schema_exception& scx)
 	{
@@ -954,7 +960,7 @@ void SelectionVisitor::visitField(const peg::ast_node& field)
 
 		promise.set_exception(std::make_exception_ptr(schema_exception { std::move(messages) }));
 
-		_values.push_back({ alias, promise.get_future() });
+		_state->builder.onError({ alias, promise.get_future() });
 	}
 	catch (const std::exception& ex)
 	{
@@ -969,7 +975,7 @@ void SelectionVisitor::visitField(const peg::ast_node& field)
 				{ position.line, position.column },
 				buildErrorPath(selectionSetParams.errorPath) } } }));
 
-		_values.push_back({ alias, promise.get_future() });
+		_state->builder.onError({ alias, promise.get_future() });
 	}
 }
 
@@ -1041,7 +1047,8 @@ void SelectionVisitor::visitFragmentSpread(const peg::ast_node& fragmentSpread)
 	if (count > 1)
 	{
 		_names.reserve(_names.capacity() + count - 1);
-		_values.reserve(_values.capacity() + count - 1);
+
+		_state->builder.reserveAdditional(count - 1);
 	}
 
 	for (const auto& selection : itr->second.getSelection().children)
@@ -1051,6 +1058,7 @@ void SelectionVisitor::visitFragmentSpread(const peg::ast_node& fragmentSpread)
 
 	_fragmentDirectives.pop_back();
 }
+
 
 void SelectionVisitor::visitInlineFragment(const peg::ast_node& inlineFragment)
 {
@@ -1101,7 +1109,8 @@ void SelectionVisitor::visitInlineFragment(const peg::ast_node& inlineFragment)
 				if (count > 1)
 				{
 					_names.reserve(_names.capacity() + count - 1);
-					_values.reserve(_values.capacity() + count - 1);
+
+					_state->builder.reserveAdditional(count - 1);
 				}
 
 				for (const auto& selection : child.children)

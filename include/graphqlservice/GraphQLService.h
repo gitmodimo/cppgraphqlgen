@@ -39,6 +39,7 @@
 #include <tuple>
 #include <variant>
 #include <vector>
+#include <iostream>
 
 namespace graphql {
 namespace schema {
@@ -100,12 +101,49 @@ private:
 	std::list<schema_error> _structuredErrors;
 };
 
+
+
+struct ResolverResult
+{
+	response::Value data;
+	std::list<schema_error> errors;
+};
+
+class ResponseBuilder{
+public:
+
+
+	void reserveAdditional(std::size_t count ){
+		_values.reserve(_values.size()+count);
+	}
+	std::vector<std::pair<std::string_view, std::future<ResolverResult>>> getResult(){
+		auto values = std::move(_values);
+		std::cout<<"getResult "<<std::endl;
+		return values;
+	}
+
+	void onError(std::pair<std::string_view, std::future<ResolverResult>> &&err){
+		_values.push_back(std::move(err));
+	}
+
+	void onResult(std::pair<std::string_view, std::future<ResolverResult>> &&result){
+
+		std::cout<<"onResult "<<result.first<<std::endl;
+		_values.push_back(std::move(result));
+	}
+
+	std::vector<std::pair<std::string_view, std::future<ResolverResult>>> _values;
+};
+
+
+
 // The RequestState is nullable, but if you have multiple threads processing requests and there's
 // any per-request state that you want to maintain throughout the request (e.g. optimizing or
 // batching backend requests), you can inherit from RequestState and pass it to Request::resolve to
 // correlate the asynchronous/recursive callbacks and accumulate state in it.
 struct RequestState : std::enable_shared_from_this<RequestState>
 {
+	ResponseBuilder builder;
 };
 
 namespace {
@@ -146,6 +184,8 @@ enum class ResolverContext
 	NotifyUnsubscribe,
 };
 
+
+
 // Pass a common bundle of parameters to all of the generated Object::getField accessors in a
 // SelectionSet
 struct SelectionSetParams
@@ -170,6 +210,7 @@ struct SelectionSetParams
 
 	// Async launch policy for sub-field resolvers.
 	const std::launch launch = std::launch::deferred;
+
 };
 
 // Pass a common bundle of parameters to all of the generated Object::getField accessors.
@@ -272,11 +313,7 @@ struct ResolverParams : SelectionSetParams
 
 // Propagate data and errors together without bundling them into a response::Value struct until
 // we're ready to return from the top level Operation.
-struct ResolverResult
-{
-	response::Value data;
-	std::list<schema_error> errors;
-};
+
 
 using Resolver = std::function<std::future<ResolverResult>(ResolverParams&&)>;
 using ResolverMap = internal::string_view_map<Resolver>;
