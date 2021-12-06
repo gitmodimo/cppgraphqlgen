@@ -296,6 +296,20 @@ ScalarType Value::release<ScalarType>()
 	return result;
 }
 
+
+template <>
+CustomType Value::release<CustomType>()
+{
+	if (!std::holds_alternative<CustomType>(_data))
+	{
+		throw std::logic_error("Invalid call to Value::release for CustomType");
+	}
+
+	CustomType result = std::move(std::get<CustomType>(_data));
+
+	return result;
+}
+
 template <>
 IdType Value::release<IdType>()
 {
@@ -349,6 +363,10 @@ Value::Value(Type type /* = Type::Null */)
 		case Type::Scalar:
 			_data = { ScalarData {} };
 			break;
+
+		case Type::Custom:
+			_data = { CustomType{nullptr} };
+			break;
 	}
 }
 
@@ -386,6 +404,11 @@ Value::Value(FloatType value)
 
 Value::Value(const IdType& value)
 	: _data(TypeData { StringData { internal::Base64::toBase64(value), false } })
+{
+}
+
+Value::Value(std::unique_ptr<CustomTypeBase>&& value)
+	: _data(TypeData { CustomType { std::move(value) } })
 {
 }
 
@@ -526,6 +549,10 @@ Type Value::type() const noexcept
 	static_assert(
 		std::is_same_v<std::variant_alternative_t<static_cast<size_t>(Type::Scalar), TypeData>,
 			ScalarData>,
+		"type mistmatch");
+	static_assert(
+		std::is_same_v<std::variant_alternative_t<static_cast<size_t>(Type::Custom), TypeData>,
+		CustomType>,
 		"type mistmatch");
 
 	return static_cast<Type>(_data.index());

@@ -40,6 +40,7 @@ enum class Type : uint8_t
 	Float,	   // JSON Number
 	EnumValue, // JSON String
 	Scalar,	   // JSON any type
+	Custom, // User Defined type
 };
 
 struct Value;
@@ -52,6 +53,15 @@ using IntType = int;
 using FloatType = double;
 using ScalarType = Value;
 using IdType = std::vector<uint8_t>;
+
+struct CustomTypeBase
+{
+	//virtual bool operator==(const CustomTypeBase& rhs) const=0;
+	//virtual CustomTypeBase&& clone()const=0;
+	virtual ~CustomTypeBase(){}
+};
+
+using CustomType = std::unique_ptr<CustomTypeBase>;
 
 template <typename ValueType>
 struct ValueTypeTraits
@@ -113,6 +123,12 @@ struct ValueTypeTraits<IdType>
 	using release_type = IdType;
 };
 
+template <>
+struct ValueTypeTraits<CustomType>
+{
+	using release_type = CustomType;
+};
+
 // Represent a discriminated union of GraphQL response value types.
 struct Value
 {
@@ -125,6 +141,7 @@ struct Value
 	GRAPHQLRESPONSE_EXPORT explicit Value(IntType value);
 	GRAPHQLRESPONSE_EXPORT explicit Value(FloatType value);
 	GRAPHQLRESPONSE_EXPORT explicit Value(const IdType& value);
+	GRAPHQLRESPONSE_EXPORT explicit Value(std::unique_ptr<CustomTypeBase>&& value);
 
 	GRAPHQLRESPONSE_EXPORT Value(Value&& other) noexcept;
 	GRAPHQLRESPONSE_EXPORT explicit Value(const Value& other);
@@ -233,7 +250,7 @@ private:
 	};
 
 	using TypeData = std::variant<MapData, ListType, StringData, NullData, BooleanType, IntType,
-		FloatType, EnumData, ScalarData>;
+		FloatType, EnumData, ScalarData, CustomType>;
 
 	TypeData _data;
 };
