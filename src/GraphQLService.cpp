@@ -2359,6 +2359,10 @@ std::optional<std::future<void>> Request::doDeliver(std::launch launch, const Su
 {
 
 	auto itrSubscription = _subscriptions.find(key);
+	if (itrSubscription == _subscriptions.end())
+	{
+		return {};
+	}
 	auto registration = itrSubscription->second;
 	const auto& subscriptionArguments = registration->arguments;
 	bool matchedArguments = true;
