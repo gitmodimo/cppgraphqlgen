@@ -1992,6 +1992,7 @@ SubscriptionKey Request::subscribe(SubscriptionParams&& params, SubscriptionCall
 	auto registration = subscriptionVisitor.getRegistration();
 	auto key = _nextKey++;
 
+	std::unique_lock lock(_subscriptionsMutex);
 	_listeners[registration->field].emplace(key);
 	_subscriptions.emplace(key, std::move(registration));
 
@@ -2011,6 +2012,7 @@ std::future<SubscriptionKey> Request::subscribe(
 			if (itrOperation != spThis->_operations.end())
 			{
 				const auto& operation = itrOperation->second;
+				std::shared_lock lock(spThis->_subscriptionsMutex);
 				const auto& registration = spThis->_subscriptions.at(key);
 				response::Value emptyFragmentDirectives(response::Type::Map);
 				const SelectionSetParams selectionSetParams {
@@ -2036,6 +2038,7 @@ std::future<SubscriptionKey> Request::subscribe(
 				catch (const std::exception& ex)
 				{
 					// Rethrow the exception, but don't leave it subscribed if the resolver failed.
+					lock.unlock();
 					spThis->unsubscribe(key);
 					throw ex;
 				}
@@ -2049,6 +2052,7 @@ std::future<SubscriptionKey> Request::subscribe(
 
 void Request::unsubscribe(SubscriptionKey key)
 {
+	std::unique_lock lock(_subscriptionsMutex);
 	auto itrSubscription = _subscriptions.find(key);
 
 	if (itrSubscription == _subscriptions.end())
@@ -2085,6 +2089,7 @@ std::future<void> Request::unsubscribe(std::launch launch, SubscriptionKey key)
 		if (itrOperation != spThis->_operations.end())
 		{
 			const auto& operation = itrOperation->second;
+			std::shared_lock lock(spThis->_subscriptionsMutex);
 			const auto& registration = spThis->_subscriptions.at(key);
 			response::Value emptyFragmentDirectives(response::Type::Map);
 			const SelectionSetParams selectionSetParams {
@@ -2215,6 +2220,7 @@ void Request::deliver(std::launch launch, const SubscriptionName& name,
 		throw std::invalid_argument("Missing subscriptionObject");
 	}
 
+	std::shared_lock lock(_subscriptionsMutex);
 	auto itrListeners = _listeners.find(name);
 
 	if (itrListeners == _listeners.end())
@@ -2234,6 +2240,7 @@ void Request::deliver(std::launch launch, const SubscriptionName& name,
 			callbacks.push_back(std::move(*delivery));
 
 	}
+	lock.unlock();
 
 	for (auto& callback : callbacks)
 	{
@@ -2357,13 +2364,14 @@ std::optional<std::future<void>> Request::doDeliver(std::launch launch, const Su
 	const SubscriptionFilterCallback& applyDirectives,
 	const std::shared_ptr<Object>& optionalOrDefaultSubscription) const
 {
-
+	std::shared_lock lock(_subscriptionsMutex);
 	auto itrSubscription = _subscriptions.find(key);
 	if (itrSubscription == _subscriptions.end())
 	{
 		return {};
 	}
 	auto registration = itrSubscription->second;
+	lock.unlock();
 	const auto& subscriptionArguments = registration->arguments;
 	bool matchedArguments = true;
 

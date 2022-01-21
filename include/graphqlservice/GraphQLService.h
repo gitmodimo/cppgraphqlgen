@@ -39,6 +39,7 @@
 #include <tuple>
 #include <variant>
 #include <vector>
+#include <shared_mutex>
 
 namespace graphql {
 namespace schema {
@@ -999,6 +1000,8 @@ private:
 
 	const TypeMap _operations;
 	std::unique_ptr<ValidateExecutableVisitor> _validation;
+
+	mutable std::shared_mutex _subscriptionsMutex;
 	internal::sorted_map<SubscriptionKey, std::shared_ptr<SubscriptionData>> _subscriptions;
 	internal::sorted_map<SubscriptionName, internal::sorted_set<SubscriptionKey>> _listeners;
 	SubscriptionKey _nextKey = 0;
