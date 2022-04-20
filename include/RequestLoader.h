@@ -13,6 +13,7 @@
 
 #include "graphqlservice/internal/Grammar.h"
 #include "graphqlservice/internal/Schema.h"
+#include "SchemaLoader.h"
 
 namespace graphql::generator {
 
@@ -99,6 +100,11 @@ private:
 	void collectFragments() noexcept;
 	void collectVariables() noexcept;
 	void collectInputTypes(const RequestSchemaType& variableType) noexcept;
+
+public:
+	void reorderInputTypeDependencies(const InputTypeList& order);
+
+private:
 	void reorderInputTypeDependencies() noexcept;
 	void collectEnums(const RequestSchemaType& variableType) noexcept;
 	void collectEnums(const ResponseField& responseField) noexcept;

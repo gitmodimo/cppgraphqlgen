@@ -57,7 +57,7 @@ private:
 	static std::string getTypeModifierList(const TypeModifierStack& modifiers) noexcept;
 
 	const SchemaLoader _schemaLoader;
-	const RequestLoader _requestLoader;
+	RequestLoader _requestLoader;
 	const GeneratorOptions _options;
 	const std::string _headerDir;
 	const std::string _sourceDir;

@@ -218,6 +218,10 @@ static_assert(graphql::internal::MinorVersion == )cpp"
 
 	outputGetRequestDeclaration(headerFile);
 
+
+	const_cast<Generator*>(this)->_requestLoader.reorderInputTypeDependencies(
+		_schemaLoader.getInputTypes());
+
 	// Define all of the enums referenced either in variables or the response.
 	for (const auto& enumType : _requestLoader.getReferencedEnums())
 	{
@@ -543,7 +547,8 @@ response::Value ModifiedVariable<Variables::)cpp"
 					RequestLoader::unwrapSchemaType(inputField->type().lock());
 
 				sourceFile << R"cpp(	result.emplace_back(R"js()cpp" << inputField->name()
-						   << R"cpp()js"s, ModifiedVariable<)cpp"
+						   << R"cpp()js"s, ModifiedVariable<)cpp" 
+						<< ((type->kind() == introspection::TypeKind::INPUT_OBJECT)? R"cpp(Variables::)cpp": R"cpp()cpp")
 						   << _schemaLoader.getCppType(type->name()) << R"cpp(>::serialize)cpp"
 						   << getTypeModifierList(modifiers) << R"cpp((std::move(inputValue.)cpp"
 						   << SchemaLoader::getSafeCppName(inputField->name()) << R"cpp()));

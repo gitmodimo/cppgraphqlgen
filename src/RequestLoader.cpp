@@ -15,7 +15,7 @@
 #include <fstream>
 #include <iterator>
 #include <sstream>
-
+#include <iostream>
 using namespace std::literals;
 
 namespace graphql::generator {
@@ -829,6 +829,21 @@ void RequestLoader::collectInputTypes(const RequestSchemaType& variableType) noe
 			break;
 	}
 }
+void RequestLoader::reorderInputTypeDependencies(const InputTypeList& order)
+{
+	std::sort(_referencedInputTypes.begin(),
+		_referencedInputTypes.end(),
+		[order](const RequestSchemaType& lhs, const RequestSchemaType& rhs) {
+			auto l = std::find_if(order.cbegin(), order.cend(), [lhs](const InputType& type) {
+				return type.cppType == lhs->name();
+			});
+			auto r = std::find_if(order.cbegin(), order.cend(), [rhs](const InputType& type) {
+				return type.cppType == rhs->name();
+			});
+			return l<r;
+		});
+}
+
 
 void RequestLoader::reorderInputTypeDependencies() noexcept
 {
