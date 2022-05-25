@@ -371,7 +371,7 @@ GRAPHQLRESPONSE_EXPORT const ScalarType& Value::get<ScalarType>() const;
 template <>
 GRAPHQLRESPONSE_EXPORT const IdType& Value::get<IdType>() const;
 template <>
-GRAPHQLRESPONSE_EXPORT const CustomType& Value::get<CustomType>() const
+GRAPHQLRESPONSE_EXPORT const CustomType& Value::get<CustomType>() const;
 template <>
 GRAPHQLRESPONSE_EXPORT MapType Value::release<MapType>();
 template <>
