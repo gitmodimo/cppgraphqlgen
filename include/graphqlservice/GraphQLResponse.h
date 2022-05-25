@@ -44,6 +44,7 @@ enum class [[nodiscard]] Type : std::uint8_t {
 	EnumValue, // JSON String
 	ID,		   // JSON String
 	Scalar,	   // JSON any type
+	Custom, // User Defined type
 };
 
 struct Value;
@@ -55,6 +56,16 @@ using BooleanType = bool;
 using IntType = int;
 using FloatType = double;
 using ScalarType = Value;
+
+struct CustomTypeBase
+{
+	//virtual bool operator==(const CustomTypeBase& rhs) const=0;
+	//virtual CustomTypeBase&& clone()const=0;
+	virtual ~CustomTypeBase(){}
+};
+
+using CustomType = std::unique_ptr<CustomTypeBase>;
+
 
 struct [[nodiscard]] IdType
 {
@@ -209,6 +220,8 @@ struct ValueTypeTraits<FloatType>
 	using get_type = FloatType;
 };
 
+
+
 // Represent a discriminated union of GraphQL response value types.
 struct [[nodiscard]] Value
 {
@@ -221,6 +234,7 @@ struct [[nodiscard]] Value
 	GRAPHQLRESPONSE_EXPORT explicit Value(IntType value);
 	GRAPHQLRESPONSE_EXPORT explicit Value(FloatType value);
 	GRAPHQLRESPONSE_EXPORT explicit Value(IdType&& value);
+	GRAPHQLRESPONSE_EXPORT explicit Value(CustomType&& value);
 
 	GRAPHQLRESPONSE_EXPORT Value(Value&& other) noexcept;
 	GRAPHQLRESPONSE_EXPORT explicit Value(const Value& other);
@@ -315,7 +329,7 @@ private:
 	using SharedData = std::shared_ptr<const Value>;
 
 	using TypeData = std::variant<MapData, ListType, StringData, NullData, BooleanType, IntType,
-		FloatType, EnumData, IdType, ScalarData, SharedData>;
+		FloatType, EnumData, IdType, ScalarData, CustomType, SharedData>;
 
 	[[nodiscard]] const TypeData& data() const noexcept;
 
@@ -339,6 +353,8 @@ GRAPHQLRESPONSE_EXPORT void Value::set<ScalarType>(ScalarType&& value);
 template <>
 GRAPHQLRESPONSE_EXPORT void Value::set<IdType>(IdType&& value);
 template <>
+GRAPHQLRESPONSE_EXPORT void Value::set<CustomType>(CustomType&& value);
+template <>
 GRAPHQLRESPONSE_EXPORT const MapType& Value::get<MapType>() const;
 template <>
 GRAPHQLRESPONSE_EXPORT const ListType& Value::get<ListType>() const;
@@ -355,6 +371,8 @@ GRAPHQLRESPONSE_EXPORT const ScalarType& Value::get<ScalarType>() const;
 template <>
 GRAPHQLRESPONSE_EXPORT const IdType& Value::get<IdType>() const;
 template <>
+GRAPHQLRESPONSE_EXPORT const CustomType& Value::get<CustomType>() const
+template <>
 GRAPHQLRESPONSE_EXPORT MapType Value::release<MapType>();
 template <>
 GRAPHQLRESPONSE_EXPORT ListType Value::release<ListType>();
@@ -364,6 +382,8 @@ template <>
 GRAPHQLRESPONSE_EXPORT ScalarType Value::release<ScalarType>();
 template <>
 GRAPHQLRESPONSE_EXPORT IdType Value::release<IdType>();
+template <>
+GRAPHQLRESPONSE_EXPORT CustomType Value::release<CustomType>();
 #endif // GRAPHQL_DLLEXPORTS
 
 using AwaitableValue = internal::Awaitable<Value>;

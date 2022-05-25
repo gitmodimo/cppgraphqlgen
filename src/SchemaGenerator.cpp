@@ -2721,6 +2721,14 @@ std::string Generator::getArgumentDefaultValue(
 )cpp";
 			break;
 		}
+		case response::Type::Custom:
+		{
+			argumentDefaultValue << padding
+								 << R"cpp(		entry = response::Value(static_cast<response::CustomType>()cpp"
+								 << defaultValue.get<response::CustomType>() << R"cpp());
+)cpp";
+			break;
+		}
 	}
 
 	return argumentDefaultValue.str();

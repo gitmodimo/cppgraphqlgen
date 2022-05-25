@@ -640,6 +640,22 @@ void Value::set<IdType>(IdType&& value)
 }
 
 template <>
+void Value::set<CustomType>(CustomType&& value)
+{
+	if (std::holds_alternative<SharedData>(_data))
+	{
+		*this = Value { *std::get<SharedData>(_data) };
+	}
+
+	if (!std::holds_alternative<CustomType>(_data))
+	{
+		throw std::logic_error("Invalid call to Value::set for ScalarType");
+	}
+
+	_data = { CustomType { std::move(value) } };
+}
+
+template <>
 const MapType& Value::get<MapType>() const
 {
 	const auto& typeData = data();
@@ -767,6 +783,19 @@ const IdType& Value::get<IdType>() const
 }
 
 template <>
+const CustomType& Value::get<CustomType>() const
+{
+	const auto& typeData = data();
+
+	if (std::holds_alternative<CustomType>(typeData))
+	{
+		return std::get<CustomType>(typeData);
+	}
+
+	throw std::logic_error("Invalid call to Value::get for CustomType");
+}
+
+template <>
 MapType Value::release<MapType>()
 {
 	if (std::holds_alternative<SharedData>(_data))
@@ -867,6 +896,19 @@ ScalarType Value::release<ScalarType>()
 }
 
 template <>
+CustomType Value::release<CustomType>()
+{
+	if (!std::holds_alternative<CustomType>(_data))
+	{
+		throw std::logic_error("Invalid call to Value::release for CustomType");
+	}
+
+	CustomType result = std::move(std::get<CustomType>(_data));
+
+	return result;
+}
+
+template <>
 IdType Value::release<IdType>()
 {
 	if (std::holds_alternative<SharedData>(_data))
@@ -938,6 +980,10 @@ Value::Value(Type type /* = Type::Null */)
 		case Type::Scalar:
 			_data = { ScalarData {} };
 			break;
+			
+		case Type::Custom:
+			_data = { CustomType{nullptr} };
+			break;
 	}
 }
 
@@ -975,6 +1021,12 @@ Value::Value(FloatType value)
 
 Value::Value(IdType&& value)
 	: _data(TypeData { IdType { std::move(value) } })
+{
+}
+
+
+Value::Value(CustomType&& value)
+	: _data(TypeData { CustomType { std::move(value) } })
 {
 }
 
@@ -1067,6 +1119,11 @@ Value::Value(const Value& other)
 		case Type::Scalar:
 			_data = { ScalarData { std::make_unique<ScalarType>(other.get<ScalarType>()) } };
 			break;
+			
+		case Type::Custom:
+			 std::logic_error("CustomType is not copyable");
+			_data = { CustomType { nullptr } };
+			break;
 	}
 }
 
@@ -1123,6 +1180,10 @@ Type Value::typeOf(const TypeData& data) noexcept
 	static_assert(
 		std::is_same_v<std::variant_alternative_t<static_cast<size_t>(Type::Scalar), TypeData>,
 			ScalarData>,
+		"type mistmatch");		
+	static_assert(
+		std::is_same_v<std::variant_alternative_t<static_cast<size_t>(Type::Custom), TypeData>,
+		CustomType>,
 		"type mistmatch");
 
 	return static_cast<Type>(data.index());
