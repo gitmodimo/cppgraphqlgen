@@ -9,13 +9,13 @@ The following import targets are created:
 
 ::
 
-  custom-cppgraphqlgen::graphqlpeg
-  custom-cppgraphqlgen::graphqlresponse
-  custom-cppgraphqlgen::graphqlservice
-  custom-cppgraphqlgen::graphqljson
-  custom-cppgraphqlgen::graphqlclient
-  custom-cppgraphqlgen::schemagen
-  custom-cppgraphqlgen::clientgen
+  cppgraphqlgen::graphqlpeg
+  cppgraphqlgen::graphqlresponse
+  cppgraphqlgen::graphqlservice
+  cppgraphqlgen::graphqljson
+  cppgraphqlgen::graphqlclient
+  cppgraphqlgen::schemagen
+  cppgraphqlgen::clientgen
 
 The following functions are defined to help with code generation and build targets:
 
@@ -29,5 +29,5 @@ The following functions are defined to help with code generation and build targe
 
 include(CMakeFindDependencyMacro)
 find_package(Threads REQUIRED)
-include("${CMAKE_CURRENT_LIST_DIR}/custom-cppgraphqlgen-targets.cmake")
-include("${CMAKE_CURRENT_LIST_DIR}/custom-cppgraphqlgen-functions.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/cppgraphqlgen-targets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/cppgraphqlgen-functions.cmake")
