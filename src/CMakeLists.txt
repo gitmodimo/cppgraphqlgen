@@ -108,7 +108,7 @@ endif()
 
 # graphqlpeg
 add_library(graphqlpeg SyntaxTree.cpp)
-add_library(cppgraphqlgen::graphqlpeg ALIAS graphqlpeg)
+add_library(custom-cppgraphqlgen::graphqlpeg ALIAS graphqlpeg)
 target_link_libraries(graphqlpeg PUBLIC
   graphqlcoro
   taocpp::pegtl)
@@ -134,7 +134,7 @@ endif()
 add_library(graphqlresponse
   Base64.cpp
   GraphQLResponse.cpp)
-add_library(cppgraphqlgen::graphqlresponse ALIAS graphqlresponse)
+add_library(custom-cppgraphqlgen::graphqlresponse ALIAS graphqlresponse)
 target_include_directories(graphqlresponse PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
   $<INSTALL_INTERFACE:${GRAPHQL_INSTALL_INCLUDE_DIR}>)
@@ -168,7 +168,7 @@ if(GRAPHQL_BUILD_CLIENTGEN)
   add_executable(clientgen
     ClientGenerator.cpp
     RequestLoader.cpp)
-  add_executable(cppgraphqlgen::clientgen ALIAS clientgen)
+  add_executable(custom-cppgraphqlgen::clientgen ALIAS clientgen)
   target_link_libraries(clientgen PRIVATE generator_util)
   add_bigobj_flag(clientgen)
 
@@ -198,7 +198,7 @@ if(GRAPHQL_BUILD_CLIENTGEN)
   endif()
 
   install(TARGETS clientgen
-    EXPORT cppgraphqlgen-targets
+    EXPORT custom-cppgraphqlgen-targets
     CONFIGURATIONS ${GRAPHQL_INSTALL_CONFIGURATIONS}
     RUNTIME DESTINATION ${GRAPHQL_INSTALL_TOOLS_DIR}/${PROJECT_NAME})
 endif()
@@ -206,7 +206,7 @@ endif()
 # schemagen
 if(GRAPHQL_BUILD_SCHEMAGEN)
   add_executable(schemagen SchemaGenerator.cpp)
-  add_executable(cppgraphqlgen::schemagen ALIAS schemagen)
+  add_executable(custom-cppgraphqlgen::schemagen ALIAS schemagen)
   target_link_libraries(schemagen PRIVATE generator_util)
   add_bigobj_flag(schemagen)
 
@@ -236,7 +236,7 @@ if(GRAPHQL_BUILD_SCHEMAGEN)
   endif()
 
   install(TARGETS schemagen
-    EXPORT cppgraphqlgen-targets
+    EXPORT custom-cppgraphqlgen-targets
     CONFIGURATIONS ${GRAPHQL_INSTALL_CONFIGURATIONS}
     RUNTIME DESTINATION ${GRAPHQL_INSTALL_TOOLS_DIR}/${PROJECT_NAME})
 endif()
@@ -298,7 +298,7 @@ add_library(graphqlservice
   Validation.cpp
   Introspection.cpp
   ${INTROSPECTION_SCHEMA_FILES})
-add_library(cppgraphqlgen::graphqlservice ALIAS graphqlservice)
+add_library(custom-cppgraphqlgen::graphqlservice ALIAS graphqlservice)
 target_link_libraries(graphqlservice PUBLIC
   graphqlpeg
   graphqlresponse
@@ -326,7 +326,7 @@ endif()
 
 # graphqlclient
 add_library(graphqlclient GraphQLClient.cpp)
-add_library(cppgraphqlgen::graphqlclient ALIAS graphqlclient)
+add_library(custom-cppgraphqlgen::graphqlclient ALIAS graphqlclient)
 target_link_libraries(graphqlclient PUBLIC
   graphqlpeg
   graphqlresponse)
@@ -356,7 +356,7 @@ if(GRAPHQL_USE_RAPIDJSON)
 
   set(BUILD_GRAPHQLJSON ON)
   add_library(graphqljson JSONResponse.cpp)
-  add_library(cppgraphqlgen::graphqljson ALIAS graphqljson)
+  add_library(custom-cppgraphqlgen::graphqljson ALIAS graphqljson)
   target_link_libraries(graphqljson PUBLIC graphqlresponse)
   target_include_directories(graphqljson SYSTEM PRIVATE ${RAPIDJSON_INCLUDE_DIRS})
 
@@ -379,7 +379,7 @@ install(TARGETS
     graphqlcoro
     graphqlresponse
     graphqlservice
-  EXPORT cppgraphqlgen-targets
+  EXPORT custom-cppgraphqlgen-targets
   RUNTIME DESTINATION bin
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib)
@@ -411,7 +411,7 @@ if(BUILD_GRAPHQLJSON)
   target_link_libraries(graphqljson PUBLIC graphqlresponse)
 
   install(TARGETS graphqljson
-    EXPORT cppgraphqlgen-targets
+    EXPORT custom-cppgraphqlgen-targets
     RUNTIME DESTINATION bin
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib)
@@ -422,6 +422,6 @@ else()
   set(GRAPHQL_BUILD_TESTS OFF CACHE BOOL "GRAPHQL_BUILD_TESTS depends on BUILD_GRAPHQLJSON" FORCE)
 endif()
 
-install(EXPORT cppgraphqlgen-targets
-  NAMESPACE cppgraphqlgen::
+install(EXPORT custom-cppgraphqlgen-targets
+  NAMESPACE custom-cppgraphqlgen::
   DESTINATION ${GRAPHQL_INSTALL_CMAKE_DIR}/${PROJECT_NAME})
