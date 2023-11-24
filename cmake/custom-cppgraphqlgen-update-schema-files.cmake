@@ -37,6 +37,7 @@ endforeach()
 
 # Don't update the files in the source directory if no files were generated in the binary directory.
 if(NOT FILE_NAMES)
+  message(STATUS ${SCHEMA_BINARY_DIR})
   message(FATAL_ERROR "Schema generation failed!")
 endif()
 
