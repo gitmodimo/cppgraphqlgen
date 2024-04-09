@@ -131,23 +131,23 @@ struct ResponseHandler : rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Respons
 	{
 		if (i > static_cast<unsigned int>(std::numeric_limits<int>::max()))
 		{
-			return Double(d);
+			return Double(i);
 			// https://spec.graphql.org/October2021/#sec-Int
 			//throw std::overflow_error("GraphQL only supports 32-bit signed integers");
 		}
 		return Int(static_cast<int>(i));
 	}
 
-	bool Int64(int64_t /*i*/)
+	bool Int64(int64_t i)
 	{
-		return Double(d);
+		return Double(i);
 		// https://spec.graphql.org/October2021/#sec-Int
 		//throw std::overflow_error("GraphQL only supports 32-bit signed integers");
 	}
 
-	bool Uint64(uint64_t /*i*/)
+	bool Uint64(uint64_t i)
 	{
-		return Double(d);
+		return Double(i);
 		// https://spec.graphql.org/October2021/#sec-Int
 		//throw std::overflow_error("GraphQL only supports 32-bit signed integers");
 	}
