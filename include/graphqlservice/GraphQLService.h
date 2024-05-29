@@ -428,9 +428,16 @@ template <typename T>
 class [[nodiscard]] AwaitableObject
 {
 public:
+
 	template <typename U>
-	AwaitableObject(U&& value)
-		: _value { std::forward<U>(value) }
+	AwaitableObjectTest(U&& value, std::enable_if_t<std::is_assignable_v<T,U>>* = nullptr)
+	: _value { std::forward<U>(value) }
+	{
+	}
+
+	template <typename U>
+	AwaitableObjectTest(U&& value,std::enable_if_t<!std::is_assignable_v<T,U>>* = nullptr)
+	: _value ( std::make_shared<typename T::element_type>(value) )
 	{
 	}
 
