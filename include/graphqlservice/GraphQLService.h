@@ -426,6 +426,14 @@ struct is_vector : std::false_type {};
 
 template <typename T>
 struct is_vector<std::vector<T>> : std::true_type {};
+
+template <typename T>
+struct is_optional : std::false_type {};
+
+template <typename T>
+struct is_optional<std::optional<T> > : std::true_type {};
+
+
 // Field accessors may return either a result of T, an awaitable of T, or a std::future<T>, so at
 // runtime the implementer may choose to return by value or defer/parallelize expensive operations
 // by returning an async future or an awaitable coroutine.
@@ -434,6 +442,7 @@ class [[nodiscard]] AwaitableObject
 {
 public:
 
+	
 	template <typename U>
 	AwaitableObject(U&& value, std::enable_if_t<std::is_assignable_v<T,U>>* = nullptr)
 	: _value { std::forward<U>(value) }
@@ -441,10 +450,28 @@ public:
 	}
 
 	template <typename U>
-	AwaitableObject(U&& value,std::enable_if_t<!std::is_assignable_v<T,U> && !is_vector<U>::value  >* = nullptr)
+	AwaitableObject(U&& value,std::enable_if_t<!std::is_assignable_v<T,U> && !is_vector<U>::value && !is_optional<U>::value >* = nullptr)
 	: _value ( value?std::make_shared<typename T::element_type>(value): std::shared_ptr<typename T::element_type>())
 	{
 	}
+
+
+	template <typename U>
+	AwaitableObject(U&& value,std::enable_if_t<!std::is_assignable_v<T,U> &&  is_optional<U>::value && is_vector<typename U::value_type>::value  >* = nullptr)
+	{
+		if(!value)
+			return;
+		typename T::value_type vec;
+		for(auto v:*value){
+			if(v)
+				vec.push_back(std::make_shared<typename T::value_type::value_type::element_type>(v));
+			else
+				vec.push_back(std::shared_ptr<typename T::value_type::value_type::element_type>());
+		}
+		_value=std::move(vec);
+	}
+
+
 
 	template <typename U>
 	AwaitableObject(U&& value,std::enable_if_t<!std::is_assignable_v<T,U> && is_vector<U>::value  >* = nullptr)
@@ -458,6 +485,7 @@ public:
 		}
 		_value=std::move(vec);
 	}
+
 
 	struct promise_type
 	{
