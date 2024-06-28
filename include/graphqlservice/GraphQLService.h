@@ -134,7 +134,8 @@ constexpr std::string_view strSubscription { "subscription"sv };
 } // namespace
 
 // Resolvers may be called in multiple different Operation contexts.
-enum class [[nodiscard]] ResolverContext {
+enum class [[nodiscard]] ResolverContext
+{
 	// Resolving a Query operation.
 	Query,
 
@@ -422,17 +423,146 @@ private:
 };
 
 template <typename T>
-struct is_vector : std::false_type {};
+struct is_optional : std::false_type
+{
+};
 
 template <typename T>
-struct is_vector<std::vector<T>> : std::true_type {};
+struct is_optional<std::optional<T>> : std::true_type
+{
+};
 
 template <typename T>
-struct is_optional : std::false_type {};
+struct is_vector : std::false_type
+{
+};
 
 template <typename T>
-struct is_optional<std::optional<T> > : std::true_type {};
+struct is_vector<std::vector<T>> : std::true_type
+{
+};
 
+template <typename T>
+struct is_future : std::false_type
+{
+};
+
+template <typename T>
+struct is_future<std::future<T>> : std::true_type
+{
+};
+
+template <typename T>
+struct type_tag
+{
+	using type = T;
+};
+
+template <typename K, typename V>
+struct pair
+{
+	using first_type = K;
+	using second_type = V;
+};
+
+template <typename Pair>
+struct element
+{
+	static auto value(type_tag<typename Pair::first_type>) -> type_tag<typename Pair::second_type>;
+};
+
+template <typename... elems>
+struct type_map : element<elems>...
+{
+	using element<elems>::value...;
+
+	template <typename K>
+	using find = typename decltype(type_map::value(type_tag<K> {}))::type;
+};
+
+template <typename U, typename T>
+struct GraphQLUnion : std::false_type
+{
+};
+
+template <typename... Types>
+struct Union
+{
+	template <typename U>
+	Union(U&& u)
+		: value(std::forward<U>(u))
+	{
+	}
+	std::variant<std::shared_ptr<Types>...> value;
+};
+
+template <typename T>
+struct is_union : std::false_type
+{
+};
+
+template <typename... Types>
+struct is_union<Union<Types...>> : std::true_type
+{
+};
+
+template <typename T>
+struct GraphQLBuilder
+{
+
+	template <typename U>
+	static T build(U&& u)
+	{
+
+		if constexpr (is_optional<T>::value)
+		{
+			if constexpr (is_optional<U>::value)
+			{
+				if (u)
+					return GraphQLBuilder<typename T::value_type>::build(*u);
+				return std::nullopt;
+			}
+			else
+			{
+				return GraphQLBuilder<typename T::value_type>::build(std::forward<U>(u));
+			}
+		}
+		else if constexpr (is_vector<T>::value)
+		{
+			T out;
+			for (auto ui : u)
+			{
+				out.push_back(GraphQLBuilder<typename T::value_type>::build(ui));
+			}
+			return out;
+		}
+		else if constexpr (is_union<typename std::remove_reference_t<U>::element_type>::value)
+		{
+			static_assert(GraphQLUnion<typename std::remove_reference_t<U>::element_type,
+							  typename T::element_type>::value,
+				"template<> struct GraphQLUnion<T::element_type>: std::true_type{...} not "
+				"defined!");
+			if (u)
+				return std::visit(
+					[]<typename V>(V&& arg) {
+						using model_t =
+							typename GraphQLUnion<typename std::remove_reference_t<U>::element_type,
+								typename T::element_type>::model_map::
+								find<typename std::remove_reference_t<V>::element_type>;
+						return GraphQLBuilder<T>::build(
+							GraphQLBuilder<std::shared_ptr<model_t>>::build(std::move(arg)));
+					},
+					std::move(u->value));
+			return std::shared_ptr<typename T::element_type>();
+		}
+		else
+		{
+			if (u)
+				return std::make_shared<typename T::element_type>(std::forward<U>(u));
+			return std::shared_ptr<typename T::element_type>();
+		}
+	}
+};
 
 // Field accessors may return either a result of T, an awaitable of T, or a std::future<T>, so at
 // runtime the implementer may choose to return by value or defer/parallelize expensive operations
@@ -441,51 +571,69 @@ template <typename T>
 class [[nodiscard]] AwaitableObject
 {
 public:
-
-	
 	template <typename U>
-	AwaitableObject(U&& value, std::enable_if_t<std::is_assignable_v<T,U>>* = nullptr)
-	: _value { std::forward<U>(value) }
+	AwaitableObject(U&& value, std::enable_if_t<std::is_assignable_v<T, U>>* = nullptr)
+		: _value { std::forward<U>(value) }
 	{
 	}
 
 	template <typename U>
-	AwaitableObject(U&& value,std::enable_if_t<!std::is_assignable_v<T,U> && !is_vector<U>::value && !is_optional<U>::value >* = nullptr)
-	: _value ( value?std::make_shared<typename T::element_type>(value): std::shared_ptr<typename T::element_type>())
+	AwaitableObject(
+		U&& value, std::enable_if_t<!std::is_assignable_v<T, U> && !is_future<U>::value>* = nullptr)
+		: _value(GraphQLBuilder<T>::build(std::forward<U>(value)))
 	{
 	}
-
 
 	template <typename U>
-	AwaitableObject(U&& value,std::enable_if_t<!std::is_assignable_v<T,U> &&  is_optional<U>::value && is_vector<typename U::value_type>::value  >* = nullptr)
+	AwaitableObject(
+		U&& value, std::enable_if_t<!std::is_assignable_v<T, U> && is_future<U>::value>* = nullptr)
+		: _value(std::async([value = std::forward<U>(value)]() mutable {
+			return GraphQLBuilder<T>::build(value.get());
+		}))
 	{
-		if(!value)
-			return;
-		typename T::value_type vec;
-		for(auto v:*value){
-			if(v)
-				vec.push_back(std::make_shared<typename T::value_type::value_type::element_type>(v));
-			else
-				vec.push_back(std::shared_ptr<typename T::value_type::value_type::element_type>());
-		}
-		_value=std::move(vec);
 	}
+	// template <typename U>
+	// AwaitableObject(U&& value, std::enable_if_t<std::is_assignable_v<T,U>>* = nullptr)
+	// : _value { std::forward<U>(value) }
+	// {
+	// }
 
+	// template <typename U>
+	// AwaitableObject(U&& value,std::enable_if_t<!std::is_assignable_v<T,U> && !is_vector<U>::value
+	// && !is_optional<U>::value >* = nullptr) : _value ( value?std::make_shared<typename
+	// T::element_type>(value): std::shared_ptr<typename T::element_type>())
+	// {
+	// }
 
+	// template <typename U>
+	// AwaitableObject(U&& value,std::enable_if_t<!std::is_assignable_v<T,U> &&
+	// is_optional<U>::value && is_vector<typename U::value_type>::value  >* = nullptr)
+	// {
+	// 	if(!value)
+	// 		return;
+	// 	typename T::value_type vec;
+	// 	for(auto v:*value){
+	// 		if(v)
+	// 			vec.push_back(std::make_shared<typename
+	// T::value_type::value_type::element_type>(v)); 		else
+	// vec.push_back(std::shared_ptr<typename T::value_type::value_type::element_type>());
+	// 	}
+	// 	_value=std::move(vec);
+	// }
 
-	template <typename U>
-	AwaitableObject(U&& value,std::enable_if_t<!std::is_assignable_v<T,U> && is_vector<U>::value  >* = nullptr)
-	{
-		T vec;
-		for(auto v:value){
-			if(v)
-				vec.push_back(std::make_shared<typename T::value_type::element_type>(v));
-			else
-				vec.push_back(std::shared_ptr<typename T::value_type::element_type>());
-		}
-		_value=std::move(vec);
-	}
-
+	// template <typename U>
+	// AwaitableObject(U&& value,std::enable_if_t<!std::is_assignable_v<T,U> && is_vector<U>::value
+	// >* = nullptr)
+	// {
+	// 	T vec;
+	// 	for(auto v:value){
+	// 		if(v)
+	// 			vec.push_back(std::make_shared<typename T::value_type::element_type>(v));
+	// 		else
+	// 			vec.push_back(std::shared_ptr<typename T::value_type::element_type>());
+	// 	}
+	// 	_value=std::move(vec);
+	// }
 
 	struct promise_type
 	{
@@ -639,7 +787,8 @@ using ResolverMap = internal::string_view_map<Resolver>;
 // GraphQL types are nullable by default, but they may be wrapped with non-null or list types.
 // Since nullability is a more special case in C++, we invert the default and apply that modifier
 // instead when the non-null wrapper is not present in that part of the wrapper chain.
-enum class [[nodiscard]] TypeModifier {
+enum class [[nodiscard]] TypeModifier
+{
 	None,
 	Nullable,
 	List,
@@ -687,8 +836,8 @@ namespace {
 
 // These types are used as scalar arguments even though they are represented with a class.
 template <typename Type>
-concept ScalarArgumentClass = std::is_same_v<Type, std::string> || std::is_same_v<Type,
-	response::IdType> || std::is_same_v<Type, response::Value>;
+concept ScalarArgumentClass = std::is_same_v<Type, std::string>
+	|| std::is_same_v<Type, response::IdType> || std::is_same_v<Type, response::Value>;
 
 // Any non-scalar class used in an argument is a generated INPUT_OBJECT type.
 template <typename Type>
@@ -763,8 +912,8 @@ struct ModifiedArgument
 
 	// Peel off the none modifier. If it's included, it should always be last in the list.
 	template <TypeModifier Modifier = TypeModifier::None, TypeModifier... Other>
-	[[nodiscard]] static Type require(std::string_view name,
-		const response::Value& arguments) requires OnlyNoneModifiers<Modifier, Other...>
+	[[nodiscard]] static Type require(std::string_view name, const response::Value& arguments)
+		requires OnlyNoneModifiers<Modifier, Other...>
 	{
 		static_assert(sizeof...(Other) == 0, "None modifier should always be last");
 
@@ -775,7 +924,8 @@ struct ModifiedArgument
 	// Peel off nullable modifiers.
 	template <TypeModifier Modifier, TypeModifier... Other>
 	[[nodiscard]] static typename ArgumentTraits<Type, Modifier, Other...>::type require(
-		std::string_view name, const response::Value& arguments) requires NullableModifier<Modifier>
+		std::string_view name, const response::Value& arguments)
+		requires NullableModifier<Modifier>
 	{
 		const auto& valueItr = arguments.find(name);
 
@@ -800,7 +950,8 @@ struct ModifiedArgument
 	// Peel off list modifiers.
 	template <TypeModifier Modifier, TypeModifier... Other>
 	[[nodiscard]] static typename ArgumentTraits<Type, Modifier, Other...>::type require(
-		std::string_view name, const response::Value& arguments) requires ListModifier<Modifier>
+		std::string_view name, const response::Value& arguments)
+		requires ListModifier<Modifier>
 	{
 		const auto& values = arguments[name];
 		typename ArgumentTraits<Type, Modifier, Other...>::type result(values.size());
@@ -837,8 +988,8 @@ struct ModifiedArgument
 
 	// Peel off the none modifier. If it's included, it should always be last in the list.
 	template <TypeModifier Modifier = TypeModifier::None, TypeModifier... Other>
-	[[nodiscard]] static Type duplicate(
-		const Type& value) requires OnlyNoneModifiers<Modifier, Other...>
+	[[nodiscard]] static Type duplicate(const Type& value)
+		requires OnlyNoneModifiers<Modifier, Other...>
 	{
 		// Just copy the value.
 		return Type { value };
@@ -847,8 +998,8 @@ struct ModifiedArgument
 	// Peel off nullable modifiers.
 	template <TypeModifier Modifier, TypeModifier... Other>
 	[[nodiscard]] static typename ArgumentTraits<Type, Modifier, Other...>::type duplicate(
-		const typename ArgumentTraits<Type, Modifier, Other...>::type& nullableValue) requires
-		NullableModifier<Modifier>
+		const typename ArgumentTraits<Type, Modifier, Other...>::type& nullableValue)
+		requires NullableModifier<Modifier>
 	{
 		typename ArgumentTraits<Type, Modifier, Other...>::type result {};
 
@@ -871,8 +1022,8 @@ struct ModifiedArgument
 	// Peel off list modifiers.
 	template <TypeModifier Modifier, TypeModifier... Other>
 	[[nodiscard]] static typename ArgumentTraits<Type, Modifier, Other...>::type duplicate(
-		const typename ArgumentTraits<Type, Modifier, Other...>::type& listValue) requires
-		ListModifier<Modifier>
+		const typename ArgumentTraits<Type, Modifier, Other...>::type& listValue)
+		requires ListModifier<Modifier>
 	{
 		typename ArgumentTraits<Type, Modifier, Other...>::type result(listValue.size());
 
@@ -1054,8 +1205,8 @@ struct ModifiedResult
 	// Peel off the none modifier. If it's included, it should always be last in the list.
 	template <TypeModifier Modifier = TypeModifier::None, TypeModifier... Other>
 	[[nodiscard]] static AwaitableResolver convert(
-		AwaitableObject<typename ResultTraits<Type>::type> result,
-		ResolverParams params) requires NoneObjectDerivedType<Type, Modifier>
+		AwaitableObject<typename ResultTraits<Type>::type> result, ResolverParams params)
+		requires NoneObjectDerivedType<Type, Modifier>
 	{
 		// Call through to the Object specialization with a static_pointer_cast for subclasses of
 		// Object.
@@ -1074,8 +1225,9 @@ struct ModifiedResult
 
 	// Peel off the none modifier. If it's included, it should always be last in the list.
 	template <TypeModifier Modifier = TypeModifier::None, TypeModifier... Other>
-	[[nodiscard]] static AwaitableResolver convert(typename ResultTraits<Type>::future_type result,
-		ResolverParams params) requires NoneScalarOrObjectType<Type, Modifier>
+	[[nodiscard]] static AwaitableResolver convert(
+		typename ResultTraits<Type>::future_type result, ResolverParams params)
+		requires NoneScalarOrObjectType<Type, Modifier>
 	{
 		static_assert(sizeof...(Other) == 0, "None modifier should always be last");
 
@@ -1086,8 +1238,8 @@ struct ModifiedResult
 	// Peel off final nullable modifiers for std::shared_ptr of Object and subclasses of Object.
 	template <TypeModifier Modifier, TypeModifier... Other>
 	[[nodiscard]] static AwaitableResolver convert(
-		typename ResultTraits<Type, Modifier, Other...>::future_type result,
-		ResolverParams params) requires NullableResultSharedPtr<Type, Modifier, Other...>
+		typename ResultTraits<Type, Modifier, Other...>::future_type result, ResolverParams params)
+		requires NullableResultSharedPtr<Type, Modifier, Other...>
 	{
 		co_await params.launch;
 
@@ -1107,8 +1259,8 @@ struct ModifiedResult
 	// Peel off nullable modifiers for anything else, which should all be std::optional.
 	template <TypeModifier Modifier, TypeModifier... Other>
 	[[nodiscard]] static AwaitableResolver convert(
-		typename ResultTraits<Type, Modifier, Other...>::future_type result,
-		ResolverParams params) requires NullableResultOptional<Type, Modifier, Other...>
+		typename ResultTraits<Type, Modifier, Other...>::future_type result, ResolverParams params)
+		requires NullableResultOptional<Type, Modifier, Other...>
 	{
 		static_assert(std::is_same_v<std::optional<typename ResultTraits<Type, Other...>::type>,
 						  typename ResultTraits<Type, Modifier, Other...>::type>,
@@ -1144,8 +1296,8 @@ struct ModifiedResult
 	// Peel off list modifiers.
 	template <TypeModifier Modifier, TypeModifier... Other>
 	[[nodiscard]] static AwaitableResolver convert(
-		typename ResultTraits<Type, Modifier, Other...>::future_type result,
-		ResolverParams params) requires ListModifier<Modifier>
+		typename ResultTraits<Type, Modifier, Other...>::future_type result, ResolverParams params)
+		requires ListModifier<Modifier>
 	{
 		if constexpr (!ObjectBaseType<Type>)
 		{
@@ -1245,8 +1397,8 @@ struct ModifiedResult
 
 	// Peel off the none modifier. If it's included, it should always be last in the list.
 	template <TypeModifier Modifier = TypeModifier::None, TypeModifier... Other>
-	static void validateScalar(
-		const response::Value& value) requires OnlyNoneModifiers<Modifier, Other...>
+	static void validateScalar(const response::Value& value)
+		requires OnlyNoneModifiers<Modifier, Other...>
 	{
 		static_assert(sizeof...(Other) == 0, "None modifier should always be last");
 
@@ -1256,7 +1408,8 @@ struct ModifiedResult
 
 	// Peel off nullable modifiers.
 	template <TypeModifier Modifier, TypeModifier... Other>
-	static void validateScalar(const response::Value& value) requires NullableModifier<Modifier>
+	static void validateScalar(const response::Value& value)
+		requires NullableModifier<Modifier>
 	{
 		if (value.type() != response::Type::Null)
 		{
@@ -1266,7 +1419,8 @@ struct ModifiedResult
 
 	// Peel off list modifiers.
 	template <TypeModifier Modifier, TypeModifier... Other>
-	static void validateScalar(const response::Value& value) requires ListModifier<Modifier>
+	static void validateScalar(const response::Value& value)
+		requires ListModifier<Modifier>
 	{
 		if (value.type() != response::Type::List)
 		{
