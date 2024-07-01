@@ -538,6 +538,13 @@ struct GraphQLBuilder
 		}
 		else if constexpr (is_union<typename std::remove_reference_t<U>::element_type>::value)
 		{
+
+			// using model_t =
+			// 	typename GraphQLUnion < typename std::remove_reference_t<U>::element_type,
+			// 	  typename(typename T::element_type
+			// 		  > ::model_map)::find<typename std::remove_reference_t<V>::element_type>;
+			// typedef std::shared_ptr<model_t> asdf_t;
+
 			static_assert(GraphQLUnion<typename std::remove_reference_t<U>::element_type,
 							  typename T::element_type>::value,
 				"template<> struct GraphQLUnion<T::element_type>: std::true_type{...} not "
@@ -545,12 +552,11 @@ struct GraphQLBuilder
 			if (u)
 				return std::visit(
 					[]<typename V>(V&& arg) {
-						using model_t =
-							typename GraphQLUnion<typename std::remove_reference_t<U>::element_type,
-								typename T::element_type>::model_map::
-								find<typename std::remove_reference_t<V>::element_type>;
 						return GraphQLBuilder<T>::build(
-							GraphQLBuilder<std::shared_ptr<model_t>>::build(std::move(arg)));
+							GraphQLBuilder<std::shared_ptr<typename GraphQLUnion<
+								typename std::remove_reference_t<U>::element_type,
+								typename T::element_type>::model_map::find<typename std::
+									remove_reference_t<V>::element_type>>>::build(std::move(arg)));
 					},
 					std::move(u->value));
 			return std::shared_ptr<typename T::element_type>();
