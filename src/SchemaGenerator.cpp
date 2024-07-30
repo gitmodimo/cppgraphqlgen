@@ -1322,8 +1322,16 @@ service::AwaitableResolver Result<)cpp"
 		{
 			response::Value result(response::Type::EnumValue);
 
+			const size_t idx = static_cast<size_t>(value);
+			if (idx<0 || idx >= s_names)cpp"
+					   << enumType.cppType << R"cpp(.size())
+			{
+				throw service::schema_exception { { R"ex(Enum value out of range for )cpp"
+					   << enumType.type << R"cpp()ex" } };
+			}
+			
 			result.set<std::string>(std::string { s_names)cpp"
-					   << enumType.cppType << R"cpp([static_cast<size_t>(value)] });
+					   << enumType.cppType << R"cpp([idx] });
 
 			return result;
 		});
