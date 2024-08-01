@@ -552,7 +552,7 @@ struct GraphQLBuilder
 			if (u)
 				return std::visit(
 					[]<typename V>(V&& arg) {
-						if constexpr(std::is_same_v<V,std::monostate>){
+						if constexpr(std::is_same_v<typename std::remove_reference_t<U>::element_type,std::monostate>){
 							throw std::logic_error("Unsupported variant type");
 						}else{
 							return GraphQLBuilder<T>::build(
