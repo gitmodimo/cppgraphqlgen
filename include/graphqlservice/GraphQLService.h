@@ -562,10 +562,9 @@ struct GraphQLBuilder
 			if (u)
 				return std::visit(
 					[]<typename V>(V&& arg) {
-						using model_t =
-							typename GraphQLUnion<typename std::remove_reference_t<U>::element_type,
-								typename T::element_type>::model_map::
-								find<typename std::remove_reference_t<V>::element_type>;
+						using union_t = GraphQLUnion<typename std::remove_reference_t<U>::element_type, typename T::element_type>;
+						using model_map_t = typename union_t::model_map;
+						using model_t = typename model_map_t::find<typename std::remove_reference_t<V>::element_type>;
 						if constexpr (std::is_same_v<model_t, std::monostate>)
 						{
 							throw std::logic_error("Unsupported variant type");
