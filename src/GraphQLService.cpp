@@ -1902,42 +1902,42 @@ AwaitableUnsubscribe Request::unsubscribe(RequestUnsubscribeParams params)
 		throw std::logic_error("Subscriptions not supported");
 	}
 
-	const auto optionalOrDefaultSubscription =
-		params.subscriptionObject ? std::move(params.subscriptionObject) : itrOperation->second;
-	std::list<schema_error> errors {};
+	// const auto optionalOrDefaultSubscription =
+	// 	params.subscriptionObject ? std::move(params.subscriptionObject) : itrOperation->second;
+	// std::list<schema_error> errors {};
 
-	if (optionalOrDefaultSubscription)
-	{
-		const auto registration = spThis->_subscriptions.at(params.key);
-		const SelectionSetParams selectionSetParams {
-			ResolverContext::NotifyUnsubscribe,
-			registration->data->state,
-			registration->data->directives,
-			std::make_shared<FragmentDefinitionDirectiveStack>(),
-			std::make_shared<FragmentSpreadDirectiveStack>(),
-			std::make_shared<FragmentSpreadDirectiveStack>(),
-			{},
-			params.launch,
-		};
+	// if (optionalOrDefaultSubscription)
+	// {
+	// 	const auto registration = spThis->_subscriptions.at(params.key);
+	// 	const SelectionSetParams selectionSetParams {
+	// 		ResolverContext::NotifyUnsubscribe,
+	// 		registration->data->state,
+	// 		registration->data->directives,
+	// 		std::make_shared<FragmentDefinitionDirectiveStack>(),
+	// 		std::make_shared<FragmentSpreadDirectiveStack>(),
+	// 		std::make_shared<FragmentSpreadDirectiveStack>(),
+	// 		{},
+	// 		params.launch,
+	// 	};
 
-		lock.unlock();
+	// 	lock.unlock();
 
-		co_await params.launch;
-		errors = std::move((co_await optionalOrDefaultSubscription->resolve(selectionSetParams,
-								registration->selection,
-								registration->data->fragments,
-								registration->data->variables))
-							   .errors);
+	// 	co_await params.launch;
+	// 	errors = std::move((co_await optionalOrDefaultSubscription->resolve(selectionSetParams,
+	// 							registration->selection,
+	// 							registration->data->fragments,
+	// 							registration->data->variables))
+	// 						   .errors);
 
-		lock.lock();
-	}
+	// 	lock.lock();
+	// }
 
 	spThis->removeSubscription(params.key);
 
-	if (!errors.empty())
-	{
-		throw schema_exception { std::move(errors) };
-	}
+	// if (!errors.empty())
+	// {
+	// 	throw schema_exception { std::move(errors) };
+	// }
 
 	co_return;
 }
