@@ -40,6 +40,8 @@ type Query {
 
     "Test C++ keyword names"
     default: String
+
+    
 }
 
 "Node interface for Relay support"

@@ -6,7 +6,12 @@ cmake_minimum_required(VERSION 3.28)
 add_subdirectory(today)
 add_subdirectory(client)
 add_subdirectory(learn)
-add_subdirectory(stitched)
+
+if(GRAPHQL_BUILD_MODULES)
+  add_subdirectory(stitched)
+endif()
+
+
 add_subdirectory(validation)
 
 if(GRAPHQL_BUILD_HTTP_SAMPLE)

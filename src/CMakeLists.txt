@@ -404,7 +404,7 @@ endif()
 if(BUILD_GRAPHQLJSON)
   add_library(cppgraphqlgen::graphqljson ALIAS graphqljson)
   target_compile_features(graphqljson PUBLIC cxx_std_20)
-  target_link_libraries(graphqljson PUBLIC graphqlresponse)
+  target_link_libraries(graphqljson PUBLIC graphqlresponse graphqlservice)
   target_sources(graphqljson PUBLIC FILE_SET HEADERS
     BASE_DIRS ${INCLUDE_ROOT}
     FILES ${INCLUDE_ROOT}/graphqlservice/JSONResponse.h)

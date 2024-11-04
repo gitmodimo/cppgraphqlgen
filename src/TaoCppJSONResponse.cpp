@@ -137,6 +137,19 @@ private:
 	std::vector<Scope> _scopeStack;
 };
 
+
+
+
+std::string toJSON(service::ResolverResult&& response)
+{
+	std::ostringstream stream;
+	auto writer = std::make_shared<ValueVisitor>(std::make_shared<StreamWriter>(stream));
+
+	std::move(response).visit().visit(writer);
+
+	return stream.str();
+}
+
 std::string toJSON(Value&& response)
 {
 	std::ostringstream stream;

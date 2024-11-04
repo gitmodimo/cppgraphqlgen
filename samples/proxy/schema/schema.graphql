@@ -11,6 +11,8 @@ enum OperationType {
   SUBSCRIPTION
 }
 
+
+
 input QueryInput {
   type: OperationType!
   query: String!
