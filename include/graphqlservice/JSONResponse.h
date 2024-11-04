@@ -7,12 +7,14 @@
 #define JSONRESPONSE_H
 
 #include "GraphQLResponse.h"
+#include "GraphQLService.h"
 
 #include "internal/DllExports.h"
 
 namespace graphql::response {
 
 [[nodiscard("unnecessary conversion")]] JSONRESPONSE_EXPORT std::string toJSON(Value&& response);
+[[nodiscard("unnecessary conversion")]] JSONRESPONSE_EXPORT std::string toJSON(service::ResolverResult&& response);
 
 [[nodiscard("unnecessary conversion")]] JSONRESPONSE_EXPORT Value parseJSON(
 	const std::string& json);

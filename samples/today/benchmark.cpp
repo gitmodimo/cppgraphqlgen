@@ -117,14 +117,60 @@ int main(int argc, char** argv)
 			}
 
 			const auto startResolve = std::chrono::steady_clock::now();
-			auto response = service->resolve({ query }).get();
-			const auto startToJson = std::chrono::steady_clock::now();
 
-			if (response::toJSON(std::move(response)).empty())
+			decltype(std::chrono::steady_clock::now()) startToJson;
+
+
+
+			/*
+			Z tego zrobić test
+			std::string a = response::toJSON(service->visit({ query }).get());
+			std::string b = response::toJSON(service->resolve({ query }).get());
+
+			std::cout << "Visit: " << a << std::endl;
+			std::cout << "Resolve: " << b << std::endl;
+
+			if (a.compare(b) != 0)
 			{
-				std::cerr << "Failed to convert to JSON!" << std::endl;
-				break;
+				std::cout << "Visit"
+						  << " is not "
+						  << "Resolve" << std::endl;
 			}
+			else
+			{			
+				std::cout << "Visit is equal Resolve" << std::endl;
+			}*/
+
+
+
+			if (1)
+			{
+				auto resolverResult = service->visit({ query }).get();
+				startToJson = std::chrono::steady_clock::now();
+
+				if (response::toJSON(std::move(resolverResult)).empty())
+				{
+					std::cerr << "Failed to convert to JSON!" << std::endl;
+					break;
+				}
+			}
+			else
+			{
+				auto response = service->resolve({ query }).get();
+				startToJson = std::chrono::steady_clock::now();
+
+				if (response::toJSON(std::move(response)).empty())
+				{
+					std::cerr << "Failed to convert to JSON!" << std::endl;
+					break;
+				}
+			}
+
+
+
+
+
+
 
 			const auto endToJson = std::chrono::steady_clock::now();
 

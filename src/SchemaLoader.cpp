@@ -655,6 +655,10 @@ void SchemaLoader::visitObjectTypeExtension(const peg::ast_node& objectTypeExten
 			}
 		}
 	}
+	else
+	{
+		visitObjectTypeDefinition(objectTypeExtension);
+	}
 }
 
 void SchemaLoader::visitInterfaceTypeDefinition(const peg::ast_node& interfaceTypeDefinition)

@@ -103,6 +103,16 @@ private:
 	rapidjson::Writer<rapidjson::StringBuffer> _writer;
 };
 
+std::string toJSON(service::ResolverResult&& response)
+{
+	rapidjson::StringBuffer buffer;
+	auto writer = std::make_shared<ValueVisitor>(std::make_shared<StreamWriter>(buffer));
+
+	std::move(response).visit().visit(writer);
+
+	return stream.str();
+}
+
 std::string toJSON(Value&& response)
 {
 	rapidjson::StringBuffer buffer;
