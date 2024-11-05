@@ -1116,13 +1116,45 @@ struct ModifiedResult
 		co_await params.launch;
 
 		auto awaitedResult = co_await std::move(result);
+		using vector_type = std::decay_t<decltype(awaitedResult)>;
+
+		// Shortcut for std::vector of non-awaitable scalars. No need to go async. Results are ready.
+		if constexpr (std::is_floating_point_v<typename vector_type::value_type>
+			|| std::is_integral_v<typename vector_type::value_type >//also for bool
+			|| std::is_same<std::string, typename vector_type::value_type>::value
+			|| std::is_same<response::IdType, typename vector_type::value_type>::value)
+		{
+			ResolverResult document;
+			document.data.push_back(response::ValueToken::StartArray {});
+			document.data.push_back(response::ValueToken::Reserve { awaitedResult.size() });
+			if constexpr (std::is_same<bool, typename vector_type::value_type>::value)
+			{
+				for (auto r : awaitedResult)
+					document.data.append(response::ValueToken::BoolValue { std::move(r) });
+			}
+			else
+			{
+				for (auto& r : awaitedResult)
+				{
+					if constexpr (std::is_integral_v<typename vector_type::value_type>)
+						document.data.append(response::ValueToken::IntValue { std::move(r) });
+					else if constexpr (std::is_floating_point_v<typename vector_type::value_type>)
+						document.data.append(response::ValueToken::FloatValue { std::move(r) });
+					else if constexpr (std::is_same<response::IdType,
+										   typename vector_type::value_type>::value)
+						document.data.append(response::ValueToken::IdValue { std::move(r) });
+					else document.data.append(response::ValueToken::StringValue { std::move(r) });
+				}
+			}
+			document.data.push_back(response::ValueToken::EndArray {});
+			co_return document;
+		}
 
 		children.reserve(awaitedResult.size());
 		params.errorPath = std::make_optional(
 			field_path { parentPath ? std::make_optional(std::cref(*parentPath)) : std::nullopt,
 				path_segment { std::size_t { 0 } } });
 
-		using vector_type = std::decay_t<decltype(awaitedResult)>;
 
 		if constexpr (!std::is_same_v<std::decay_t<typename vector_type::reference>,
 						  typename vector_type::value_type>)
