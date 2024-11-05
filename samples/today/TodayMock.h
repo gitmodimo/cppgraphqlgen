@@ -174,6 +174,7 @@ public:
 
 	std::shared_ptr<object::PageInfo> getPageInfo() const noexcept;
 	std::optional<std::vector<std::shared_ptr<object::AppointmentEdge>>> getEdges() const noexcept;
+	std::vector<double> getBigArray() const noexcept;
 
 private:
 	std::shared_ptr<PageInfo> _pageInfo;

@@ -229,6 +229,17 @@ std::optional<std::vector<std::shared_ptr<object::AppointmentEdge>>> Appointment
 	return result;
 }
 
+std::vector<double> AppointmentConnection::getBigArray() const noexcept
+{
+	std::vector<double> ret(1000);
+	int i = 0;
+	for (auto& r : ret)
+	{
+		r = i++;
+	}
+	return ret;
+}
+
 Task::Task(response::IdType&& id, std::string&& title, bool isComplete)
 	: _id(std::move(id))
 	, _title(std::make_shared<response::Value>(std::move(title)))

@@ -106,6 +106,7 @@ int main(int argc, char** argv)
 							isNow
 						}
 					}
+					bigArray
 				}
 			})gql"sv);
 			const auto startValidate = std::chrono::steady_clock::now();
@@ -143,7 +144,7 @@ int main(int argc, char** argv)
 
 
 
-			if (1)
+			if (0)
 			{
 				auto resolverResult = service->visit({ query }).get();
 				startToJson = std::chrono::steady_clock::now();
