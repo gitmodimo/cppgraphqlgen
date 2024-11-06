@@ -1509,11 +1509,11 @@ public:
 	unsubscribe(RequestUnsubscribeParams params);
 	[[nodiscard("potentially leaked event")]] GRAPHQLSERVICE_EXPORT AwaitableDeliver deliver(
 		RequestDeliverParams params) const;
+	void removeSubscription(SubscriptionKey key);
 
 private:
 	[[nodiscard("leaked subscription")]] SubscriptionKey addSubscription(
 		RequestSubscribeParams&& params);
-	void removeSubscription(SubscriptionKey key);
 	[[nodiscard("unnecessary call")]] std::vector<std::shared_ptr<const SubscriptionData>>
 	collectRegistrations(std::string_view field, RequestDeliverFilter&& filter) const noexcept;
 
