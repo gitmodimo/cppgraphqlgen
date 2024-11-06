@@ -1504,7 +1504,7 @@ public:
 	[[nodiscard("unnecessary call")]] GRAPHQLSERVICE_EXPORT AwaitableResolver visit(
 		RequestResolveParams params) const;
 	[[nodiscard("leaked subscription")]] GRAPHQLSERVICE_EXPORT AwaitableSubscribe subscribe(
-		RequestSubscribeParams params);
+		RequestSubscribeParams params, bool deliver = false);
 	[[nodiscard("potentially leaked subscription")]] GRAPHQLSERVICE_EXPORT AwaitableUnsubscribe
 	unsubscribe(RequestUnsubscribeParams params);
 	[[nodiscard("potentially leaked event")]] GRAPHQLSERVICE_EXPORT AwaitableDeliver deliver(

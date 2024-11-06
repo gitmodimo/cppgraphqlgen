@@ -2031,7 +2031,7 @@ AwaitableResolver Request::visit(RequestResolveParams params) const
 	}
 }
 
-AwaitableSubscribe Request::subscribe(RequestSubscribeParams params)
+AwaitableSubscribe Request::subscribe(RequestSubscribeParams params, bool deliver)
 {
 	const auto spThis = shared_from_this();
 	const auto launch = std::move(params.launch);
@@ -2065,20 +2065,20 @@ AwaitableSubscribe Request::subscribe(RequestSubscribeParams params)
 
 		lock.unlock();
 
+		ResolverResult document {};
+
 		try
 		{
 			co_await launch;
 
-			auto errors =
-				std::move((co_await optionalOrDefaultSubscription->resolve(selectionSetParams,
-							   registration->selection,
-							   registration->data->fragments,
-							   registration->data->variables))
-							  .errors);
+			document = co_await optionalOrDefaultSubscription->resolve(selectionSetParams,
+				registration->selection,
+				registration->data->fragments,
+				registration->data->variables);
 
-			if (!errors.empty())
+			if (!document.errors.empty())
 			{
-				throw schema_exception { std::move(errors) };
+				throw schema_exception { std::move(document.errors) };
 			}
 		}
 		catch (...)
@@ -2088,6 +2088,23 @@ AwaitableSubscribe Request::subscribe(RequestSubscribeParams params)
 			// Rethrow the exception, but don't leave it subscribed if the resolver failed.
 			spThis->removeSubscription(key);
 			throw;
+		}
+
+		if(deliver){
+			std::visit(
+			[result = std::move(document)](const auto& callback) mutable {
+				using callback_type = std::decay_t<decltype(callback)>;
+
+				if constexpr (std::is_same_v<callback_type, SubscriptionCallback>)
+				{
+					callback(std::move(result).document());
+				}
+				else if constexpr (std::is_same_v<callback_type, SubscriptionVisitor>)
+				{
+					callback(std::move(result));
+				}
+			},
+			registration->callback);
 		}
 	}
 
