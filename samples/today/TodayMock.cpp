@@ -768,7 +768,7 @@ std::vector<std::shared_ptr<object::Expensive>> Query::getExpensive()
 
 TaskState Query::getTestTaskState()
 {
-	return TaskState::Unassigned;
+	return (TaskState)100;
 }
 
 std::vector<std::shared_ptr<object::UnionType>> Query::getAnyType(
