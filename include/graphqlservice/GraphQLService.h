@@ -410,6 +410,172 @@ private:
 	std::variant<T, std::future<T>, std::shared_ptr<const response::Value>> _value;
 };
 
+template <typename T>
+struct is_optional : std::false_type
+{
+};
+
+template <typename T>
+struct is_optional<std::optional<T>> : std::true_type
+{
+};
+
+template <typename T>
+struct is_vector : std::false_type
+{
+};
+
+template <typename T>
+struct is_vector<std::vector<T>> : std::true_type
+{
+};
+
+template <typename T>
+struct is_future : std::false_type
+{
+};
+
+template <typename T>
+struct is_future<std::future<T>> : std::true_type
+{
+};
+
+template <typename T>
+struct type_tag
+{
+	using type = T;
+};
+
+template <typename K, typename V>
+struct pair
+{
+	using first_type = K;
+	using second_type = V;
+};
+
+template <typename Pair>
+struct element
+{
+	static auto value(type_tag<typename Pair::first_type>) -> type_tag<typename Pair::second_type>;
+};
+
+template <typename... elems>
+struct type_map : element<elems>...
+{
+	using element<elems>::value...;
+
+	template <typename K>
+	using find = typename decltype(type_map::value(type_tag<K> {}))::type;
+};
+
+template <typename U, typename T>
+struct GraphQLUnion : std::false_type
+{
+};
+
+template <typename... Types>
+struct Union
+{
+	template <typename U>
+	Union(U&& u)
+		: value(std::forward<U>(u))
+	{
+	}
+	std::variant<std::shared_ptr<Types>...> value;
+};
+
+template <typename T>
+struct is_union : std::false_type
+{
+};
+
+template <typename... Types>
+struct is_union<Union<Types...>> : std::true_type
+{
+};
+
+// helper type for the visitor #4
+template <class... Ts>
+struct overloaded : Ts...
+{
+	using Ts::operator()...;
+};
+// explicit deduction guide (not needed as of C++20)
+template <class... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
+
+template <typename T>
+struct GraphQLBuilder
+{
+
+	template <typename U>
+	static T build(U&& u)
+	{
+
+		if constexpr (is_optional<T>::value)
+		{
+			if constexpr (is_optional<U>::value)
+			{
+				if (u)
+					return GraphQLBuilder<typename T::value_type>::build(*u);
+				return std::nullopt;
+			}
+			else
+			{
+				return GraphQLBuilder<typename T::value_type>::build(std::forward<U>(u));
+			}
+		}
+		else if constexpr (is_vector<T>::value)
+		{
+			T out;
+			for (auto ui : u)
+			{
+				out.push_back(GraphQLBuilder<typename T::value_type>::build(ui));
+			}
+			return out;
+		}
+		else if constexpr (is_union<typename std::remove_reference_t<U>::element_type>::value)
+		{
+
+			// using model_t =
+			// 	typename GraphQLUnion < typename std::remove_reference_t<U>::element_type,
+			// 	  typename(typename T::element_type
+			// 		  > ::model_map)::find<typename std::remove_reference_t<V>::element_type>;
+			// typedef std::shared_ptr<model_t> asdf_t;
+
+			static_assert(GraphQLUnion<typename std::remove_reference_t<U>::element_type,
+							  typename T::element_type>::value,
+				"template<> struct GraphQLUnion<T::element_type>: std::true_type{...} not "
+				"defined!");
+			if (u)
+				return std::visit(
+					[]<typename V>(V&& arg) {
+						using union_t = GraphQLUnion<typename std::remove_reference_t<U>::element_type, typename T::element_type>;
+						using model_map_t = typename union_t::model_map;
+						using model_t = model_map_t::template find<typename std::remove_reference_t<V>::element_type>;
+						if constexpr (std::is_same_v<model_t, std::monostate>)
+						{
+							throw std::logic_error("Unsupported variant type");
+							return std::shared_ptr<typename T::element_type>();
+						}
+						else
+						{
+							return GraphQLBuilder<T>::build(
+								GraphQLBuilder<std::shared_ptr<model_t>>::build(std::move(arg)));
+						}
+					},
+					std::move(u->value));
+			return std::shared_ptr<typename T::element_type>();
+		}
+		else
+		{
+			if (u)
+				return std::make_shared<typename T::element_type>(std::forward<U>(u));
+			return std::shared_ptr<typename T::element_type>();
+		}
+	}
+};
+
 // Field accessors may return either a result of T, an awaitable of T, or a std::future<T>, so at
 // runtime the implementer may choose to return by value or defer/parallelize expensive operations
 // by returning an async future or an awaitable coroutine.
@@ -418,11 +584,31 @@ class [[nodiscard("unnecessary construction")]] AwaitableObject
 {
 public:
 	template <typename U>
-	AwaitableObject(U&& value)
+	AwaitableObject(U&& value, std::enable_if_t<std::is_assignable_v<T, U>>* = nullptr)
 		: _value { std::forward<U>(value) }
 	{
 	}
 
+	template <typename U>
+	AwaitableObject(
+		U&& value, std::enable_if_t<!std::is_assignable_v<T, U> && !is_future<U>::value>* = nullptr)
+		: _value(GraphQLBuilder<T>::build(std::forward<U>(value)))
+	{
+	}
+
+	template <typename U>
+	AwaitableObject(
+		U&& value, std::enable_if_t<!std::is_assignable_v<T, U> && is_future<U>::value>* = nullptr)
+		: _value(std::async([value = std::forward<U>(value)]() mutable {
+			if constexpr(std::is_assignable_v<T, decltype(value.get())>){
+				return value.get();
+			}else{
+				return GraphQLBuilder<T>::build(value.get());
+			}
+		}))
+	{
+	}
+	
 	struct promise_type
 	{
 		[[nodiscard("unnecessary construction")]] AwaitableObject<T> get_return_object() noexcept
