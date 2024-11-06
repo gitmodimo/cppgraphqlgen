@@ -110,7 +110,7 @@ std::string toJSON(service::ResolverResult&& response)
 
 	std::move(response).visit().visit(writer);
 
-	return stream.str();
+	return buffer.GetString();
 }
 
 std::string toJSON(Value&& response)
