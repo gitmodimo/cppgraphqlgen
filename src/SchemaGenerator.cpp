@@ -1621,8 +1621,8 @@ bool Generator::outputSharedTypesSource() const noexcept
 
 #include "graphqlservice/GraphQLService.h"
 
-#include ")cpp" << getSharedTypesHeaderPath()
-			   << R"cpp("
+#include ")cpp" << _loader.getFilenamePrefix()
+				   << R"cpp(SharedTypes.h"
 
 #include <algorithm>
 #include <array>
