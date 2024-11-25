@@ -131,6 +131,7 @@ type Appointment implements Node {
     subject: String
     isNow: Boolean!
     forceError: String
+    array: [ID!]!
 }
 
 type Task implements Node {
