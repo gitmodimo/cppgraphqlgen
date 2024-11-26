@@ -33,7 +33,7 @@ namespace graphql::query {
 ///   appointments {
 ///     edges {
 ///       node {
-///       array
+///         array
 ///         id
 ///         subject
 ///         when
@@ -82,6 +82,7 @@ namespace graphql::query {
 ///       subject
 ///       when
 ///       isNow
+///       array
 ///     }
 ///   }
 /// 
@@ -186,6 +187,7 @@ struct [[nodiscard("unnecessary construction")]] Response
 		std::optional<std::string> subject {};
 		std::optional<response::Value> when {};
 		bool isNow {};
+		std::vector<response::IdType> array {};
 	};
 
 	appointments_AppointmentConnection appointments {};

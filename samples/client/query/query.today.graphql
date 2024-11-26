@@ -5,7 +5,7 @@ query {
   appointments {
     edges {
       node {
-      array
+        array
         id
         subject
         when
@@ -54,6 +54,7 @@ query {
       subject
       when
       isNow
+      array
     }
   }
 

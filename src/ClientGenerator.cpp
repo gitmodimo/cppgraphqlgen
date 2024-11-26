@@ -2211,32 +2211,7 @@ void Generator::outputResponseFieldVisitorReserve(std::ostream& sourceFile,
 		case introspection::TypeKind::INTERFACE:
 		case introspection::TypeKind::UNION:
 		{
-			dereference = true;
-
-			for (auto modifier : responseField.modifiers)
-			{
-				switch (modifier)
-				{
-					case service::TypeModifier::None:
-						break;
-
-					case service::TypeModifier::Nullable:
-						accessor.append(R"cpp(->)cpp");
-						dereference = false;
-						break;
-
-					case service::TypeModifier::List:
-						if (dereference)
-						{
-							accessor.append(R"cpp(.)cpp");
-						}
-
-						accessor.append(R"cpp(back())cpp");
-						dereference = true;
-						break;
-				}
-			}
-
+			
 			if (dereference)
 			{
 				accessor.append(R"cpp(.)cpp");

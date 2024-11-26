@@ -30,7 +30,7 @@ const std::string& GetRequestText() noexcept
 		  appointments {
 		    edges {
 		      node {
-		      array
+		        array
 		        id
 		        subject
 		        when
@@ -79,6 +79,7 @@ const std::string& GetRequestText() noexcept
 		      subject
 		      when
 		      isNow
+		      array
 		    }
 		  }
 		
@@ -437,6 +438,11 @@ graphql::query::client::query::Query::Response::anyType_UnionType Response<graph
 				result.isNow = ModifiedResponse<bool>::parse(std::move(member.second));
 				continue;
 			}
+			if (member.first == R"js(array)js"sv)
+			{
+				result.array = ModifiedResponse<response::IdType>::parse<TypeModifier::List>(std::move(member.second));
+				continue;
+			}
 		}
 	}
 
@@ -501,6 +507,9 @@ struct ResponseVisitor::impl
 		Member_anyType_0_subject,
 		Member_anyType_0_when,
 		Member_anyType_0_isNow,
+		Member_anyType_0_array,
+		Member_anyType_0_array_0,
+		Member_anyType_0_array_0_,
 		Member_default_,
 		Complete,
 	};
@@ -679,6 +688,10 @@ void ResponseVisitor::add_value([[maybe_unused]] std::shared_ptr<const response:
 			_pimpl->response.anyType.back()->isNow = ModifiedResponse<bool>::parse(response::Value { *value });
 			break;
 
+		case impl::VisitorState::Member_anyType_0_array_0:
+			_pimpl->response.anyType.back()->array.push_back(ModifiedResponse<response::IdType>::parse(response::Value { *value }));
+			break;
+
 		case impl::VisitorState::Member_default_:
 			_pimpl->state = impl::VisitorState::Start;
 			_pimpl->response.default_ = ModifiedResponse<std::string>::parse<TypeModifier::Nullable>(response::Value { *value });
@@ -701,7 +714,7 @@ void ResponseVisitor::reserve([[maybe_unused]] std::size_t count)
 			break;
 
 		case impl::VisitorState::Member_appointments_edges_0_node_array_0:
-			_pimpl->response.appointments.edges->back()->->back()->node->->array.reserve(count);
+			_pimpl->response.appointments.edges->back()->node->array.reserve(count);
 			break;
 
 		case impl::VisitorState::Member_tasks_edges_0:
@@ -714,6 +727,10 @@ void ResponseVisitor::reserve([[maybe_unused]] std::size_t count)
 
 		case impl::VisitorState::Member_anyType_0:
 			_pimpl->response.anyType.reserve(count);
+			break;
+
+		case impl::VisitorState::Member_anyType_0_array_0:
+			_pimpl->response.anyType.back()->array.reserve(count);
 			break;
 
 		case impl::VisitorState::Complete:
@@ -763,6 +780,11 @@ void ResponseVisitor::start_object()
 		case impl::VisitorState::Member_anyType_0:
 			_pimpl->state = impl::VisitorState::Member_anyType_0_;
 			_pimpl->response.anyType.push_back(std::make_optional<Response::anyType_UnionType>({}));
+			break;
+
+		case impl::VisitorState::Member_anyType_0_array_0:
+			_pimpl->state = impl::VisitorState::Member_anyType_0_array_0_;
+			_pimpl->response.anyType.back()->array.push_back({});
 			break;
 
 		case impl::VisitorState::Complete:
@@ -940,6 +962,10 @@ void ResponseVisitor::add_member([[maybe_unused]] std::string&& key)
 			{
 				_pimpl->state = impl::VisitorState::Member_anyType_0_isNow;
 			}
+			else if (key == "array"sv)
+			{
+				_pimpl->state = impl::VisitorState::Member_anyType_0_array;
+			}
 			break;
 
 		case impl::VisitorState::Complete:
@@ -1029,6 +1055,10 @@ void ResponseVisitor::start_array()
 			_pimpl->state = impl::VisitorState::Member_anyType_0;
 			break;
 
+		case impl::VisitorState::Member_anyType_0_array:
+			_pimpl->state = impl::VisitorState::Member_anyType_0_array_0;
+			break;
+
 		case impl::VisitorState::Complete:
 			break;
 
@@ -1059,6 +1089,10 @@ void ResponseVisitor::end_array()
 
 		case impl::VisitorState::Member_anyType_0:
 			_pimpl->state = impl::VisitorState::Start;
+			break;
+
+		case impl::VisitorState::Member_anyType_0_array_0:
+			_pimpl->state = impl::VisitorState::Member_anyType_0_;
 			break;
 
 		case impl::VisitorState::Complete:
@@ -1262,6 +1296,10 @@ void ResponseVisitor::add_id([[maybe_unused]] response::IdType&& value)
 		case impl::VisitorState::Member_anyType_0_id:
 			_pimpl->state = impl::VisitorState::Member_anyType_0_;
 			_pimpl->response.anyType.back()->id = std::move(value);
+			break;
+
+		case impl::VisitorState::Member_anyType_0_array_0:
+			_pimpl->response.anyType.back()->array.push_back(std::move(value));
 			break;
 
 		case impl::VisitorState::Complete:
