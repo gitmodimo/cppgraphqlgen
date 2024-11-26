@@ -30,6 +30,7 @@ const std::string& GetRequestText() noexcept
 		  appointments {
 		    edges {
 		      node {
+		      array
 		        id
 		        subject
 		        when
@@ -148,6 +149,11 @@ graphql::query::client::query::Query::Response::appointments_AppointmentConnecti
 
 		for (auto& member : members)
 		{
+			if (member.first == R"js(array)js"sv)
+			{
+				result.array = ModifiedResponse<response::IdType>::parse<TypeModifier::List>(std::move(member.second));
+				continue;
+			}
 			if (member.first == R"js(id)js"sv)
 			{
 				result.id = ModifiedResponse<response::IdType>::parse(std::move(member.second));
@@ -458,6 +464,9 @@ struct ResponseVisitor::impl
 		Member_appointments_edges_0,
 		Member_appointments_edges_0_,
 		Member_appointments_edges_0_node,
+		Member_appointments_edges_0_node_array,
+		Member_appointments_edges_0_node_array_0,
+		Member_appointments_edges_0_node_array_0_,
 		Member_appointments_edges_0_node_id,
 		Member_appointments_edges_0_node_subject,
 		Member_appointments_edges_0_node_when,
@@ -527,6 +536,10 @@ void ResponseVisitor::add_value([[maybe_unused]] std::shared_ptr<const response:
 		case impl::VisitorState::Member_appointments_edges_0_node:
 			_pimpl->state = impl::VisitorState::Member_appointments_edges_0_;
 			_pimpl->response.appointments.edges->back()->node = ModifiedResponse<Response::appointments_AppointmentConnection::edges_AppointmentEdge::node_Appointment>::parse<TypeModifier::Nullable>(response::Value { *value });
+			break;
+
+		case impl::VisitorState::Member_appointments_edges_0_node_array_0:
+			_pimpl->response.appointments.edges->back()->node->array.push_back(ModifiedResponse<response::IdType>::parse(response::Value { *value }));
 			break;
 
 		case impl::VisitorState::Member_appointments_edges_0_node_id:
@@ -687,6 +700,10 @@ void ResponseVisitor::reserve([[maybe_unused]] std::size_t count)
 			_pimpl->response.appointments.edges->reserve(count);
 			break;
 
+		case impl::VisitorState::Member_appointments_edges_0_node_array_0:
+			_pimpl->response.appointments.edges->back()->->back()->node->->array.reserve(count);
+			break;
+
 		case impl::VisitorState::Member_tasks_edges_0:
 			_pimpl->response.tasks.edges->reserve(count);
 			break;
@@ -718,6 +735,11 @@ void ResponseVisitor::start_object()
 
 		case impl::VisitorState::Member_appointments_edges_0_node:
 			_pimpl->response.appointments.edges->back()->node = std::make_optional<Response::appointments_AppointmentConnection::edges_AppointmentEdge::node_Appointment>({});
+			break;
+
+		case impl::VisitorState::Member_appointments_edges_0_node_array_0:
+			_pimpl->state = impl::VisitorState::Member_appointments_edges_0_node_array_0_;
+			_pimpl->response.appointments.edges->back()->node->array.push_back({});
 			break;
 
 		case impl::VisitorState::Member_tasks_edges_0:
@@ -797,7 +819,11 @@ void ResponseVisitor::add_member([[maybe_unused]] std::string&& key)
 			break;
 
 		case impl::VisitorState::Member_appointments_edges_0_node:
-			if (key == "id"sv)
+			if (key == "array"sv)
+			{
+				_pimpl->state = impl::VisitorState::Member_appointments_edges_0_node_array;
+			}
+			else if (key == "id"sv)
 			{
 				_pimpl->state = impl::VisitorState::Member_appointments_edges_0_node_id;
 			}
@@ -985,6 +1011,10 @@ void ResponseVisitor::start_array()
 			_pimpl->response.appointments.edges = std::make_optional<std::vector<std::optional<Response::appointments_AppointmentConnection::edges_AppointmentEdge>>>({});
 			break;
 
+		case impl::VisitorState::Member_appointments_edges_0_node_array:
+			_pimpl->state = impl::VisitorState::Member_appointments_edges_0_node_array_0;
+			break;
+
 		case impl::VisitorState::Member_tasks_edges:
 			_pimpl->state = impl::VisitorState::Member_tasks_edges_0;
 			_pimpl->response.tasks.edges = std::make_optional<std::vector<std::optional<Response::tasks_TaskConnection::edges_TaskEdge>>>({});
@@ -1013,6 +1043,10 @@ void ResponseVisitor::end_array()
 	{
 		case impl::VisitorState::Member_appointments_edges_0:
 			_pimpl->state = impl::VisitorState::Member_appointments;
+			break;
+
+		case impl::VisitorState::Member_appointments_edges_0_node_array_0:
+			_pimpl->state = impl::VisitorState::Member_appointments_edges_0_node;
 			break;
 
 		case impl::VisitorState::Member_tasks_edges_0:
@@ -1206,6 +1240,10 @@ void ResponseVisitor::add_id([[maybe_unused]] response::IdType&& value)
 {
 	switch (_pimpl->state)
 	{
+		case impl::VisitorState::Member_appointments_edges_0_node_array_0:
+			_pimpl->response.appointments.edges->back()->node->array.push_back(std::move(value));
+			break;
+
 		case impl::VisitorState::Member_appointments_edges_0_node_id:
 			_pimpl->state = impl::VisitorState::Member_appointments_edges_0_node;
 			_pimpl->response.appointments.edges->back()->node->id = std::move(value);
