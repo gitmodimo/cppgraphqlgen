@@ -125,41 +125,46 @@ std::vector<std::string> Generator::Build() const noexcept
 {
 	std::vector<std::string> builtFiles;
 
-	if (outputSharedTypesHeader() && _options.verbose)
-	{
-		builtFiles.push_back(_sharedTypesHeaderPath);
+	if (!_options.noTypes){		
+		if (outputSharedTypesHeader() && _options.verbose)
+		{
+			builtFiles.push_back(_sharedTypesHeaderPath);
+		}
+
+		if (outputSharedTypesModule() && _options.verbose)
+		{
+			builtFiles.push_back(_sharedTypesModulePath);
+		}
+
+		if (outputSharedTypesSource())
+		{
+			builtFiles.push_back(_sharedTypesSourcePath);
+		}
 	}
 
-	if (outputSharedTypesModule() && _options.verbose)
-	{
-		builtFiles.push_back(_sharedTypesModulePath);
-	}
 
-	if (outputSchemaHeader() && _options.verbose)
-	{
-		builtFiles.push_back(_schemaHeaderPath);
-	}
+	if (!_options.noSchema){
+		if (outputSchemaHeader() && _options.verbose)
+		{
+			builtFiles.push_back(_schemaHeaderPath);
+		}
 
-	if (outputSchemaModule() && _options.verbose)
-	{
-		builtFiles.push_back(_schemaModulePath);
-	}
+		if (outputSchemaModule() && _options.verbose)
+		{
+			builtFiles.push_back(_schemaModulePath);
+		}
 
-	if (outputSharedTypesSource())
-	{
-		builtFiles.push_back(_sharedTypesSourcePath);
-	}
+		if (outputSchemaSource())
+		{
+			builtFiles.push_back(_schemaSourcePath);
+		}
 
-	if (outputSchemaSource())
-	{
-		builtFiles.push_back(_schemaSourcePath);
-	}
+		auto separateFiles = outputSeparateFiles();
 
-	auto separateFiles = outputSeparateFiles();
-
-	for (auto& file : separateFiles)
-	{
-		builtFiles.push_back(std::move(file));
+		for (auto& file : separateFiles)
+		{
+			builtFiles.push_back(std::move(file));
+		}
 	}
 
 	return builtFiles;
@@ -3823,6 +3828,8 @@ int main(int argc, char** argv)
 	bool stubs = false;
 	bool noIntrospection = false;
 	bool prefixedHeaders = false;
+	bool noTypes = false;
+	bool noSchema = false;
 	std::string schemaFileName;
 	std::string filenamePrefix;
 	std::string schemaNamespace;
@@ -3849,7 +3856,11 @@ int main(int argc, char** argv)
 		"Unimplemented fields throw runtime exceptions instead of compiler errors")("no-"
 																					"introspection",
 		po::bool_switch(&noIntrospection),
-		"Do not generate support for Introspection")("prefix-headers",
+		"Do not generate support for Introspection")("no-types",
+		po::bool_switch(&noTypes),
+		"Do not generate SharedTypes")("no-schema",
+		po::bool_switch(&noSchema),
+		"Do not generate Schema")("prefix-headers",
 		po::bool_switch(&prefixedHeaders),
 		"Prefix generated object header filenames");
 	positional.add("schema", 1).add("prefix", 1).add("namespace", 1);
@@ -3916,6 +3927,8 @@ int main(int argc, char** argv)
 				verbose,										// verbose
 				stubs,											// stubs
 				noIntrospection,								// noIntrospection
+				noTypes,										// noTypes
+				noSchema,										// noSchema
 				prefixedHeaders,								// prefixedHeaders
 			})
 							   .Build();

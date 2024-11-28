@@ -24,6 +24,8 @@ struct [[nodiscard("unnecessary construction")]] GeneratorOptions
 	const bool verbose = false;
 	const bool stubs = false;
 	const bool noIntrospection = false;
+	const bool noTypes = false;
+	const bool noSchema = false;
 	const bool prefixedHeaders = false;
 };
 
