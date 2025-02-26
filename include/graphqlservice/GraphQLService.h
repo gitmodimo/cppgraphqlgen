@@ -599,7 +599,7 @@ public:
 	template <typename U>
 	AwaitableObject(
 		U&& value, std::enable_if_t<!std::is_assignable_v<T, U> && is_future<U>::value>* = nullptr)
-		: _value(std::async([value = std::forward<U>(value)]() mutable {
+		: _value(std::async(std::launch::deferred, [value = std::forward<U>(value)]() mutable {
 			if constexpr(std::is_assignable_v<T, decltype(value.get())>){
 				return value.get();
 			}else{
