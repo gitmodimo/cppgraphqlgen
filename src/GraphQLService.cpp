@@ -1593,6 +1593,7 @@ public:
 		const std::shared_ptr<const Object>& subscriptionObject);
 
 	const peg::ast_node& getRoot() const;
+	peg::ast& getQuery();
 	std::shared_ptr<SubscriptionData> getRegistration();
 
 	void visit(const peg::ast_node& operationDefinition);
@@ -1622,6 +1623,11 @@ SubscriptionDefinitionVisitor::SubscriptionDefinitionVisitor(RequestSubscribePar
 const peg::ast_node& SubscriptionDefinitionVisitor::getRoot() const
 {
 	return *_params.query.root;
+}
+
+peg::ast& SubscriptionDefinitionVisitor::getQuery()
+{
+	return _params.query;
 }
 
 std::shared_ptr<SubscriptionData> SubscriptionDefinitionVisitor::getRegistration()
@@ -2240,16 +2246,23 @@ SubscriptionKey Request::addSubscription(RequestSubscribeParams&& params)
 		});
 
 	auto fragments = fragmentVisitor.getFragments();
+
+	auto requestOperationName = params.operationName;
+	auto itr = _operations.find(strSubscription);
+	SubscriptionDefinitionVisitor subscriptionVisitor(std::move(params),
+		std::move(fragments),
+		itr->second);
+
 	auto [operationType, operationDefinition] =
-		findOperationDefinition(params.query, params.operationName);
+		findOperationDefinition(subscriptionVisitor.getQuery(), requestOperationName);
 
 	if (!operationDefinition)
 	{
 		auto message = "Missing subscription"s;
 
-		if (!params.operationName.empty())
+		if (!requestOperationName.empty())
 		{
-			message += std::format(" name: {}", params.operationName);
+			message += std::format(" name: {}", requestOperationName);
 		}
 
 		throw schema_exception { { std::move(message) } };
@@ -2259,9 +2272,9 @@ SubscriptionKey Request::addSubscription(RequestSubscribeParams&& params)
 		auto position = operationDefinition->begin();
 		auto message = std::format("Unexpected operation type: {}", operationType);
 
-		if (!params.operationName.empty())
+		if (!requestOperationName.empty())
 		{
-			message += std::format(" name: {}", params.operationName);
+			message += std::format(" name: {}", requestOperationName);
 		}
 
 		throw schema_exception {
@@ -2269,15 +2282,7 @@ SubscriptionKey Request::addSubscription(RequestSubscribeParams&& params)
 		};
 	}
 
-	auto itr = _operations.find(strSubscription);
-	SubscriptionDefinitionVisitor subscriptionVisitor(std::move(params),
-		std::move(fragments),
-		itr->second);
-
-	peg::for_each_child<peg::operation_definition>(subscriptionVisitor.getRoot(),
-		[&subscriptionVisitor](const peg::ast_node& child) {
-			subscriptionVisitor.visit(child);
-		});
+	subscriptionVisitor.visit(*operationDefinition);
 
 	auto registration = subscriptionVisitor.getRegistration();
 	auto key = _nextKey++;
