@@ -1593,6 +1593,7 @@ public:
 		const std::shared_ptr<const Object>& subscriptionObject);
 
 	const peg::ast_node& getRoot() const;
+	peg::ast& getQuery();
 	std::shared_ptr<SubscriptionData> getRegistration();
 
 	void visit(const peg::ast_node& operationDefinition);
@@ -1622,6 +1623,11 @@ SubscriptionDefinitionVisitor::SubscriptionDefinitionVisitor(RequestSubscribePar
 const peg::ast_node& SubscriptionDefinitionVisitor::getRoot() const
 {
 	return *_params.query.root;
+}
+
+peg::ast& SubscriptionDefinitionVisitor::getQuery()
+{
+	return _params.query;
 }
 
 std::shared_ptr<SubscriptionData> SubscriptionDefinitionVisitor::getRegistration()
@@ -2090,21 +2096,22 @@ AwaitableSubscribe Request::subscribe(RequestSubscribeParams params, bool delive
 			throw;
 		}
 
-		if(deliver){
+		if (deliver)
+		{
 			std::visit(
-			[result = std::move(document)](const auto& callback) mutable {
-				using callback_type = std::decay_t<decltype(callback)>;
+				[result = std::move(document)](const auto& callback) mutable {
+					using callback_type = std::decay_t<decltype(callback)>;
 
-				if constexpr (std::is_same_v<callback_type, SubscriptionCallback>)
-				{
-					callback(std::move(result).document());
-				}
-				else if constexpr (std::is_same_v<callback_type, SubscriptionVisitor>)
-				{
-					callback(std::move(result));
-				}
-			},
-			registration->callback);
+					if constexpr (std::is_same_v<callback_type, SubscriptionCallback>)
+					{
+						callback(std::move(result).document());
+					}
+					else if constexpr (std::is_same_v<callback_type, SubscriptionVisitor>)
+					{
+						callback(std::move(result));
+					}
+				},
+				registration->callback);
 		}
 	}
 
@@ -2257,16 +2264,23 @@ SubscriptionKey Request::addSubscription(RequestSubscribeParams&& params)
 		});
 
 	auto fragments = fragmentVisitor.getFragments();
+
+	auto requestOperationName = params.operationName;
+	auto itr = _operations.find(strSubscription);
+	SubscriptionDefinitionVisitor subscriptionVisitor(std::move(params),
+		std::move(fragments),
+		itr->second);
+
 	auto [operationType, operationDefinition] =
-		findOperationDefinition(params.query, params.operationName);
+		findOperationDefinition(subscriptionVisitor.getQuery(), requestOperationName);
 
 	if (!operationDefinition)
 	{
 		auto message = "Missing subscription"s;
 
-		if (!params.operationName.empty())
+		if (!requestOperationName.empty())
 		{
-			message += std::format(" name: {}", params.operationName);
+			message += std::format(" name: {}", requestOperationName);
 		}
 
 		throw schema_exception { { std::move(message) } };
@@ -2276,20 +2290,15 @@ SubscriptionKey Request::addSubscription(RequestSubscribeParams&& params)
 		auto position = operationDefinition->begin();
 		auto message = std::format("Unexpected operation type: {}", operationType);
 
-		if (!params.operationName.empty())
+		if (!requestOperationName.empty())
 		{
-			message += std::format(" name: {}", params.operationName);
+			message += std::format(" name: {}", requestOperationName);
 		}
 
 		throw schema_exception {
 			{ schema_error { std::move(message), { position.line, position.column } } }
 		};
 	}
-
-	auto itr = _operations.find(strSubscription);
-	SubscriptionDefinitionVisitor subscriptionVisitor(std::move(params),
-		std::move(fragments),
-		itr->second);
 
 	subscriptionVisitor.visit(*operationDefinition);
 
