@@ -254,6 +254,8 @@ void SchemaLoader::fixupOutputFieldList(OutputFieldList& fields,
 			entry.accessor = *accessor;
 		}
 
+		fixupInputFieldList(entry.arguments);
+
 		if (s_builtinTypes.find(entry.type) != s_builtinTypes.cend())
 		{
 			continue;
@@ -311,8 +313,6 @@ void SchemaLoader::fixupOutputFieldList(OutputFieldList& fields,
 				throw std::runtime_error(error);
 			}
 		}
-
-		fixupInputFieldList(entry.arguments);
 	}
 }
 

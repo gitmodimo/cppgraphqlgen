@@ -83,12 +83,12 @@ TEST(SchemaGenCase, NullableInputArgOnBuiltinReturnField)
 	EXPECT_EQ(headerContent.find("std::optional<TestInput>"), std::string::npos)
 		<< "concept should NOT use std::optional<TestInput> for nullable input object argument";
 
-	// Also check the source file for consistent usage.
+	// Also check the source file uses the correct ModifiedArgument with Nullable.
 	const auto sourceContent = readFile(outDir.path() / "QueryObject.cpp");
 	ASSERT_FALSE(sourceContent.empty()) << "QueryObject.cpp should be generated";
 
-	EXPECT_NE(sourceContent.find("unique_ptr<TestInput>"), std::string::npos)
-		<< "resolver should use unique_ptr<TestInput>";
+	EXPECT_NE(sourceContent.find("ModifiedArgument<test::TestInput>"), std::string::npos)
+		<< "resolver should use ModifiedArgument<test::TestInput>";
 }
 
 // Regression test: run schemagen on a schema where a builtin-returning field
