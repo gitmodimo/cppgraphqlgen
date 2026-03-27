@@ -219,6 +219,60 @@ TEST(PegtlSchemaCase, ParseTodaySchema)
 	ASSERT_TRUE(result) << "we should be able to parse the doc";
 }
 
+TEST(PegtlSchemaCase, ParseNonNullDefaultedInputWithEnum)
+{
+	memory_input<> input(R"gql(
+		schema {
+			query: Query
+		}
+
+		enum Status {
+			ACTIVE
+			INACTIVE
+		}
+
+		input TestInput {
+			status: Status! = ACTIVE
+			name: String! = "default"
+		}
+
+		type Query {
+			test(input: TestInput! = {status: ACTIVE, name: "default"}): String
+		})gql",
+		"ParseNonNullDefaultedInputWithEnum");
+
+	const bool result = parse<schema_document>(input);
+
+	ASSERT_TRUE(result) << "we should be able to parse the doc";
+}
+
+TEST(PegtlSchemaCase, ParseNonNullDefaultedInputEmptyDefault)
+{
+	memory_input<> input(R"gql(
+		schema {
+			query: Query
+		}
+
+		enum Status {
+			ACTIVE
+			INACTIVE
+		}
+
+		input TestInput {
+			status: Status! = ACTIVE
+			name: String! = "default"
+		}
+
+		type Query {
+			test(input: TestInput! = {}): String
+		})gql",
+		"ParseNonNullDefaultedInputEmptyDefault");
+
+	const bool result = parse<schema_document>(input);
+
+	ASSERT_TRUE(result) << "we should be able to parse the doc";
+}
+
 TEST(PegtlSchemaCase, AnalyzeSchemaGrammar)
 {
 	ASSERT_EQ(std::size_t { 0 }, analyze<schema_document>(true))

@@ -62,6 +62,19 @@ if(GRAPHQL_BUILD_MODULES)
   gtest_add_tests(TARGET argument_tests)
 endif()
 
+if(GRAPHQL_BUILD_SCHEMAGEN)
+  add_executable(schema_loader_tests SchemaLoaderTests.cpp)
+  target_link_libraries(schema_loader_tests PRIVATE
+    GTest::GTest
+    GTest::Main)
+  target_compile_features(schema_loader_tests PRIVATE cxx_std_20)
+  target_compile_definitions(schema_loader_tests PRIVATE
+    SCHEMA_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    SCHEMAGEN_PATH="$<TARGET_FILE:schemagen>")
+  add_dependencies(schema_loader_tests schemagen)
+  gtest_add_tests(TARGET schema_loader_tests)
+endif()
+
 add_executable(pegtl_combined_tests PegtlCombinedTests.cpp)
 target_link_libraries(pegtl_combined_tests PRIVATE
   taocpp::pegtl

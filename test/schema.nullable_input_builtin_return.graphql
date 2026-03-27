@@ -1,0 +1,17 @@
+schema {
+    query: Query
+}
+
+enum Status {
+    ACTIVE
+    INACTIVE
+}
+
+input TestInput {
+    status: Status! = ACTIVE
+    name: String! = "default"
+}
+
+type Query {
+    test(input: TestInput): String
+}
